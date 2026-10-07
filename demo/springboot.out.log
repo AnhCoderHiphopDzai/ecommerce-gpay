@@ -1,0 +1,248 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.example:demo >--------------------------
+[INFO] Building  0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.2.0-SNAPSHOT:run (default-cli) > test-compile @ demo >>>
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ demo ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ demo ---
+[INFO] skip non existing resourceDirectory E:\demo (1)\demo\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.2.0-SNAPSHOT:run (default-cli) < test-compile @ demo <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.2.0-SNAPSHOT:run (default-cli) @ demo ---
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/maven-metadata.xml
+Progress (1): 0.5/2.4 kBProgress (1): 1.9/2.4 kBProgress (1): 2.4 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/maven-metadata.xml (2.4 kB at 1.6 kB/s)
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/spring-boot-buildpack-platform-4.2.0-20260911.072837-165.pom
+Progress (1): 0.3/3.0 kBProgress (1): 1.7/3.0 kBProgress (1): 3.0 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/spring-boot-buildpack-platform-4.2.0-20260911.072837-165.pom (3.0 kB at 10 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.6.4/httpclient5-5.6.4.pom
+Progress (1): 869 BProgress (1): 2.0 kBProgress (1): 5.2 kBProgress (1): 6.7 kB                    Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.6.4/httpclient5-5.6.4.pom (6.7 kB at 40 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.6.4/httpclient5-parent-5.6.4.pom
+Progress (1): 838 BProgress (1): 1.9 kBProgress (1): 3.5 kBProgress (1): 7.2 kBProgress (1): 11 kB Progress (1): 13 kBProgress (1): 16 kBProgress (1): 20 kBProgress (1): 20 kB                   Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.6.4/httpclient5-parent-5.6.4.pom (20 kB at 551 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/io/opentelemetry/opentelemetry-bom/1.49.0/opentelemetry-bom-1.49.0.pom
+Progress (1): 983 BProgress (1): 5.3 kBProgress (1): 5.9 kB                    Downloaded from central: https://repo.maven.apache.org/maven2/io/opentelemetry/opentelemetry-bom/1.49.0/opentelemetry-bom-1.49.0.pom (5.9 kB at 133 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.4.3/httpcore5-5.4.3.pom
+Progress (1): 883 BProgress (1): 2.0 kBProgress (1): 3.9 kB                    Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.4.3/httpcore5-5.4.3.pom (3.9 kB at 82 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-parent/5.4.3/httpcore5-parent-5.4.3.pom
+Progress (1): 843 BProgress (1): 1.9 kBProgress (1): 3.5 kBProgress (1): 7.3 kBProgress (1): 8.8 kBProgress (1): 11 kB Progress (1): 15 kB                   Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-parent/5.4.3/httpcore5-parent-5.4.3.pom (15 kB at 256 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.4.3/httpcore5-h2-5.4.3.pom
+Progress (1): 890 BProgress (1): 2.1 kBProgress (1): 3.6 kB                    Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.4.3/httpcore5-h2-5.4.3.pom (3.6 kB at 65 kB/s)
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/maven-metadata.xml
+Progress (1): 0.5/2.4 kBProgress (1): 1.9/2.4 kBProgress (1): 2.4 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/maven-metadata.xml (2.4 kB at 8.4 kB/s)
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/spring-boot-loader-tools-4.2.0-20260911.072837-165.pom
+Progress (1): 0.3/2.3 kBProgress (1): 1.7/2.3 kBProgress (1): 2.3 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/spring-boot-loader-tools-4.2.0-20260911.072837-165.pom (2.3 kB at 7.9 kB/s)
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/spring-boot-buildpack-platform-4.2.0-20260911.072837-165.jar
+Progress (1): 16/333 kBProgress (1): 17/333 kBProgress (1): 33/333 kBProgress (1): 34/333 kBProgress (1): 51/333 kBProgress (1): 52/333 kBProgress (1): 68/333 kBProgress (1): 69/333 kBProgress (1): 85/333 kBProgress (1): 86/333 kBProgress (1): 103/333 kBProgress (1): 104/333 kBProgress (1): 120/333 kBProgress (1): 121/333 kBProgress (1): 138/333 kBProgress (1): 139/333 kBProgress (1): 155/333 kBProgress (1): 156/333 kBProgress (1): 172/333 kBProgress (1): 173/333 kBProgress (1): 190/333 kBProgress (1): 191/333 kBProgress (1): 207/333 kBProgress (1): 208/333 kBProgress (1): 225/333 kBProgress (1): 226/333 kBProgress (1): 242/333 kBProgress (1): 243/333 kBProgress (1): 259/333 kBProgress (1): 261/333 kBProgress (1): 277/333 kBProgress (1): 278/333 kBProgress (1): 294/333 kBProgress (1): 295/333 kBProgress (1): 312/333 kBProgress (1): 313/333 kBProgress (1): 329/333 kBProgress (1): 330/333 kBProgress (1): 333 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-buildpack-platform/4.2.0-SNAPSHOT/spring-boot-buildpack-platform-4.2.0-20260911.072837-165.jar (333 kB at 116 kB/s)
+Downloading from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/spring-boot-loader-tools-4.2.0-20260911.072837-165.jar
+Progress (1): 16/346 kBProgress (1): 17/346 kBProgress (1): 33/346 kBProgress (1): 34/346 kBProgress (1): 51/346 kBProgress (1): 52/346 kBProgress (1): 53/346 kBProgress (1): 70/346 kBProgress (1): 71/346 kBProgress (1): 87/346 kBProgress (1): 88/346 kBProgress (1): 105/346 kBProgress (1): 106/346 kBProgress (1): 116/346 kBProgress (1): 133/346 kBProgress (1): 134/346 kBProgress (1): 150/346 kBProgress (1): 151/346 kBProgress (1): 168/346 kBProgress (1): 169/346 kBProgress (1): 185/346 kBProgress (1): 186/346 kBProgress (1): 202/346 kBProgress (1): 203/346 kBProgress (1): 220/346 kBProgress (1): 221/346 kBProgress (1): 237/346 kBProgress (1): 238/346 kBProgress (1): 255/346 kBProgress (1): 256/346 kBProgress (1): 272/346 kBProgress (1): 273/346 kBProgress (1): 289/346 kBProgress (1): 290/346 kBProgress (1): 307/346 kBProgress (1): 308/346 kBProgress (1): 324/346 kBProgress (1): 325/346 kBProgress (1): 342/346 kBProgress (1): 343/346 kBProgress (1): 346 kB                        Downloaded from spring-snapshots: https://repo.spring.io/snapshot/org/springframework/boot/spring-boot-loader-tools/4.2.0-SNAPSHOT/spring-boot-loader-tools-4.2.0-20260911.072837-165.jar (346 kB at 186 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.6.4/httpclient5-5.6.4.jar
+Progress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.1/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.2/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.3/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.4/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.5/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.6/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.7/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.8/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 0.9/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.0/1.1 MBProgress (1): 1.1/1.1 MBProgress (1): 1.1 MB                        Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.6.4/httpclient5-5.6.4.jar (1.1 MB at 6.8 MB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.4.3/httpcore5-5.4.3.jar
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.4.3/httpcore5-h2-5.4.3.jar
+Progress (1): 7.7/955 kBProgress (1): 16/955 kB Progress (1): 24/955 kBProgress (1): 40/955 kBProgress (1): 57/955 kBProgress (1): 73/955 kBProgress (1): 90/955 kBProgress (1): 106/955 kBProgress (1): 122/955 kBProgress (1): 139/955 kBProgress (1): 155/955 kBProgress (1): 172/955 kBProgress (1): 188/955 kBProgress (1): 204/955 kBProgress (1): 221/955 kBProgress (1): 237/955 kBProgress (1): 253/955 kBProgress (1): 270/955 kBProgress (1): 286/955 kBProgress (1): 303/955 kBProgress (1): 319/955 kBProgress (1): 335/955 kBProgress (1): 352/955 kBProgress (1): 368/955 kBProgress (1): 385/955 kBProgress (1): 401/955 kBProgress (1): 417/955 kBProgress (1): 434/955 kBProgress (1): 450/955 kBProgress (1): 466/955 kBProgress (1): 483/955 kBProgress (1): 499/955 kBProgress (1): 516/955 kBProgress (1): 532/955 kBProgress (1): 548/955 kBProgress (1): 565/955 kBProgress (1): 581/955 kBProgress (1): 598/955 kBProgress (1): 614/955 kBProgress (1): 630/955 kBProgress (1): 647/955 kBProgress (1): 663/955 kBProgress (1): 679/955 kBProgress (1): 696/955 kBProgress (1): 712/955 kBProgress (1): 729/955 kBProgress (1): 745/955 kBProgress (1): 761/955 kBProgress (1): 778/955 kBProgress (1): 794/955 kBProgress (1): 810/955 kBProgress (1): 827/955 kBProgress (1): 843/955 kBProgress (1): 860/955 kBProgress (1): 876/955 kBProgress (1): 892/955 kBProgress (1): 909/955 kBProgress (1): 925/955 kBProgress (1): 942/955 kBProgress (1): 955 kB                        Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.4.3/httpcore5-5.4.3.jar (955 kB at 10 MB/s)
+Progress (1): 0.9/264 kBProgress (1): 2.3/264 kBProgress (1): 3.6/264 kBProgress (1): 5.0/264 kBProgress (1): 6.4/264 kBProgress (1): 7.7/264 kBProgress (1): 9.1/264 kBProgress (1): 10/264 kB Progress (1): 12/264 kBProgress (1): 13/264 kBProgress (1): 15/264 kBProgress (1): 16/264 kBProgress (1): 17/264 kBProgress (1): 19/264 kBProgress (1): 20/264 kBProgress (1): 21/264 kBProgress (1): 23/264 kBProgress (1): 24/264 kBProgress (1): 26/264 kBProgress (1): 27/264 kBProgress (1): 28/264 kBProgress (1): 30/264 kBProgress (1): 31/264 kBProgress (1): 32/264 kBProgress (1): 33/264 kBProgress (1): 35/264 kBProgress (1): 36/264 kBProgress (1): 37/264 kBProgress (1): 39/264 kBProgress (1): 40/264 kBProgress (1): 41/264 kBProgress (1): 43/264 kBProgress (1): 44/264 kBProgress (1): 46/264 kBProgress (1): 47/264 kBProgress (1): 48/264 kBProgress (1): 50/264 kBProgress (1): 51/264 kBProgress (1): 52/264 kBProgress (1): 54/264 kBProgress (1): 55/264 kBProgress (1): 59/264 kBProgress (1): 64/264 kBProgress (1): 68/264 kBProgress (1): 72/264 kBProgress (1): 76/264 kBProgress (1): 80/264 kBProgress (1): 85/264 kBProgress (1): 89/264 kBProgress (1): 93/264 kBProgress (1): 97/264 kBProgress (1): 102/264 kBProgress (1): 106/264 kBProgress (1): 110/264 kBProgress (1): 114/264 kBProgress (1): 119/264 kBProgress (1): 123/264 kBProgress (1): 127/264 kBProgress (1): 131/264 kBProgress (1): 135/264 kBProgress (1): 140/264 kBProgress (1): 144/264 kBProgress (1): 148/264 kBProgress (1): 152/264 kBProgress (1): 157/264 kBProgress (1): 161/264 kBProgress (1): 163/264 kBProgress (1): 167/264 kBProgress (1): 171/264 kBProgress (1): 176/264 kBProgress (1): 180/264 kBProgress (1): 184/264 kBProgress (1): 188/264 kBProgress (1): 193/264 kBProgress (1): 197/264 kBProgress (1): 201/264 kBProgress (1): 205/264 kBProgress (1): 209/264 kBProgress (1): 214/264 kBProgress (1): 218/264 kBProgress (1): 222/264 kBProgress (1): 239/264 kBProgress (1): 255/264 kBProgress (1): 264 kB                        Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.4.3/httpcore5-h2-5.4.3.jar (264 kB at 1.2 MB/s)
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::       (v4.2.0-SNAPSHOT)
+
+2026-09-11T14:44:38.715+07:00  INFO 1564 --- [demo] [           main] com.example.DemoApplication              : Starting DemoApplication using Java 21.0.11 with PID 1564 (E:\demo (1)\demo\target\classes started by nguye in E:\demo (1)\demo)
+2026-09-11T14:44:38.723+07:00  INFO 1564 --- [demo] [           main] com.example.DemoApplication              : No active profile set, falling back to 1 default profile: "default"
+2026-09-11T14:44:39.447+07:00  INFO 1564 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-09-11T14:44:39.524+07:00  INFO 1564 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 65 ms. Found 3 JPA repository interfaces.
+2026-09-11T14:44:40.027+07:00  INFO 1564 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-09-11T14:44:40.046+07:00  INFO 1564 --- [demo] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-09-11T14:44:40.046+07:00  INFO 1564 --- [demo] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.24]
+2026-09-11T14:44:40.113+07:00  INFO 1564 --- [demo] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1343 ms
+2026-09-11T14:44:40.298+07:00  INFO 1564 --- [demo] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-09-11T14:44:40.350+07:00  INFO 1564 --- [demo] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.5.Final
+2026-09-11T14:44:40.787+07:00  INFO 1564 --- [demo] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-09-11T14:44:40.817+07:00  INFO 1564 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-09-11T14:44:40.978+07:00  INFO 1564 --- [demo] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@22ff1372
+2026-09-11T14:44:40.980+07:00  INFO 1564 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-09-11T14:44:41.058+07:00  INFO 1564 --- [demo] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:mysql://localhost:3306/shop?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=false]
+	Database driver: MySQL Connector/J
+	Database dialect: MySQLDialect
+	Database version: 8.0.46
+	Default catalog/schema: shop/undefined
+	Autocommit mode: undefined/unknown
+	Isolation level: REPEATABLE_READ [default REPEATABLE_READ]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-09-11T14:44:41.982+07:00  INFO 1564 --- [demo] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-09-11T14:44:42.054+07:00  INFO 1564 --- [demo] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-09-11T14:44:42.122+07:00  INFO 1564 --- [demo] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-09-11T14:44:42.242+07:00  WARN 1564 --- [demo] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-09-11T14:44:42.550+07:00  INFO 1564 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-09-11T14:44:42.556+07:00  INFO 1564 --- [demo] [           main] com.example.DemoApplication              : Started DemoApplication in 4.271 seconds (process running for 4.653)
+2026-09-11T14:45:05.346+07:00  INFO 1564 --- [demo] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-09-11T14:45:05.346+07:00  INFO 1564 --- [demo] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-09-11T14:45:05.348+07:00  INFO 1564 --- [demo] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+Hibernate: 
+    select
+        i1_0.invoice_id,
+        i1_0.buyer_name,
+        i1_0.buyer_phone,
+        i1_0.created_at,
+        i1_0.invoice_code,
+        i1_0.seller_id,
+        i1_0.status,
+        i1_0.total_amount 
+    from
+        invoices i1_0
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0
+Hibernate: 
+    select
+        s1_0.seller_id,
+        s1_0.created_at,
+        s1_0.name,
+        s1_0.phone,
+        s1_0.tax_code 
+    from
+        sellers s1_0 
+    where
+        s1_0.seller_id=?
+Hibernate: 
+    select
+        id1_0.invoice_id,
+        id1_0.detail_id,
+        id1_0.line_total,
+        id1_0.product_id,
+        id1_0.quantity,
+        id1_0.unit_price 
+    from
+        invoice_details id1_0 
+    where
+        id1_0.invoice_id=?
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0 
+    where
+        p1_0.product_id=?
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0 
+    where
+        p1_0.product_id=?
+Hibernate: 
+    select
+        s1_0.seller_id,
+        s1_0.created_at,
+        s1_0.name,
+        s1_0.phone,
+        s1_0.tax_code 
+    from
+        sellers s1_0 
+    where
+        s1_0.seller_id=?
+Hibernate: 
+    select
+        id1_0.invoice_id,
+        id1_0.detail_id,
+        id1_0.line_total,
+        id1_0.product_id,
+        id1_0.quantity,
+        id1_0.unit_price 
+    from
+        invoice_details id1_0 
+    where
+        id1_0.invoice_id=?
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0 
+    where
+        p1_0.product_id=?
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0 
+    where
+        p1_0.product_id=?
+Hibernate: 
+    select
+        id1_0.invoice_id,
+        id1_0.detail_id,
+        id1_0.line_total,
+        id1_0.product_id,
+        id1_0.quantity,
+        id1_0.unit_price 
+    from
+        invoice_details id1_0 
+    where
+        id1_0.invoice_id=?
+Hibernate: 
+    select
+        p1_0.product_id,
+        p1_0.created_at,
+        p1_0.current_unit_price,
+        p1_0.name,
+        p1_0.stock_quantity,
+        p1_0.unit,
+        p1_0.updated_at 
+    from
+        products p1_0 
+    where
+        p1_0.product_id=?

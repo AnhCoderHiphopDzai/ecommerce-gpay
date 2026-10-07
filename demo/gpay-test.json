@@ -1,0 +1,12 @@
+{
+  "amount": 2500000,
+  "callback_url": "http://localhost:5173/",
+  "customer_id": "GUEST",
+  "customer_name": "Guest",
+  "description": "Payment for order TEST-001",
+  "embed_data": "TEST-001",
+  "payment_type": "IMMEDIATE",
+  "request_id": "test-request-001",
+  "title": "Thanh toán đơn hàng TEST-001",
+  "webhook_url": "https://unslated-snugging-kellie.ngrok-free.dev/api/payment/webhook"
+}
