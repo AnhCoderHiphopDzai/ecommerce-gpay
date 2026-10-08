@@ -8,7 +8,6 @@ import Swal from 'sweetalert2';
 const Home = () => {
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
-
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [buyerName, setBuyerName] = useState('');
     const [buyerPhone, setBuyerPhone] = useState('');
@@ -29,7 +28,7 @@ const Home = () => {
         const stompClient = new Client({
             webSocketFactory: () => new SockJS('http://localhost:8081/ws'),
             onConnect: () => {
-                console.log('✅ Đã kết nối WebSocket thành công');
+                console.log(' Đã kết nối WebSocket thành công');
 
                 // Lắng nghe cập nhật Tồn kho (Live Stock)
                 stompClient.subscribe('/topic/stock-updates', (message) => {
@@ -57,7 +56,7 @@ const Home = () => {
                         );
 
                         if (hasSoldOutItem) {
-                            alert("🛑 Rất tiếc! Một sản phẩm trong đơn của bạn vừa được khách khác thanh toán xong. Vui lòng tạo đơn mới.");
+                            alert(" Rất tiếc! Một sản phẩm trong đơn của bạn vừa được khách khác thanh toán xong. Vui lòng tạo đơn mới.");
                             setVaData(null);         // Tắt mã QR
                             setPreviewInvoice(null); // Đóng hóa đơn
                         }

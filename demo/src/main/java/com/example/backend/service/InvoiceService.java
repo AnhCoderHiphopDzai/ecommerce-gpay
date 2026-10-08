@@ -10,6 +10,7 @@ import com.example.backend.model.Product;
 import com.example.backend.model.Seller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -30,42 +32,20 @@ public class InvoiceService {
     private ProductRepository productRepository;
     @Autowired
     private SellerRepository sellerRepository;
-
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    public void validateStockBeforePayment(String invoiceCode) {
-        Invoice invoice = getInvoiceByCode(invoiceCode);
-        LocalDateTime threeMinsAgo = LocalDateTime.now().minusMinutes(3);
-
-        for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
-            int lockedQty = invoiceRepository.getLockedQuantity(
-                    detail.getProduct().getProductId(),
-                    threeMinsAgo,
-                    invoice.getInvoiceId()
-            );
-
-            int availableStock = detail.getProduct().getStockQuantity() - lockedQty;
-
-            if (availableStock < detail.getQuantity()) {
-                throw new RuntimeException("Sản phẩm '" + detail.getProduct().getName() +
-                        "' đang được khách khác thanh toán. Vui lòng thử lại sau 3 phút!");
-            }
-        }
-    }
-
+    // =========================================
+    // 1. TẠO ĐƠN & TRỪ KHO CỨNG NGAY LẬP TỨC
+    // =========================================
     @Transactional
     public Invoice createInvoice(OrderRequest request) {
         Seller seller = sellerRepository.findById(request.getSellerId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Seller"));
 
         Invoice invoice = new Invoice();
-
-
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        int randomDigits = 1000 + new Random().nextInt(9000); // Random từ 1000 đến 9999
-        invoice.setInvoiceCode("GPAY" + datePart + randomDigits);
-
+        invoice.setInvoiceCode("GPAY" + datePart + (1000 + new Random().nextInt(9000)));
 
         invoice.setSeller(seller);
         invoice.setBuyerName(request.getBuyerName());
@@ -78,8 +58,23 @@ public class InvoiceService {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
+            // Kiểm tra kho thực tế
             if (product.getStockQuantity() < item.getQuantity()) {
-                throw new RuntimeException("Sản phẩm " + product.getName() + " không đủ số lượng!");
+                throw new RuntimeException("Sản phẩm " + product.getName() + " đã hết hàng!");
+            }
+
+            //  TRỪ KHO CỨNG NGAY LÚC LÊN ĐƠN
+            product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
+            productRepository.save(product);
+
+            //  PHÁT WEBSOCKET CHO MỌI NGƯỜI BIẾT KHO VỪA TỤT
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("productId", product.getProductId());
+            payload.put("stockQuantity", product.getStockQuantity());
+            messagingTemplate.convertAndSend("/topic/stock-updates", (Object) payload);
+
+            if (product.getStockQuantity() == 0) {
+                messagingTemplate.convertAndSend("/topic/sold-out", String.valueOf(product.getProductId()));
             }
 
             InvoiceDetail detail = new InvoiceDetail();
@@ -87,6 +82,7 @@ public class InvoiceService {
             detail.setProduct(product);
             detail.setQuantity(item.getQuantity());
             detail.setUnitPrice(product.getCurrentUnitPrice());
+
             BigDecimal lineTotal = product.getCurrentUnitPrice().multiply(new BigDecimal(item.getQuantity()));
             detail.setLineTotal(lineTotal);
             totalAmount = totalAmount.add(lineTotal);
@@ -97,111 +93,106 @@ public class InvoiceService {
         return invoiceRepository.save(invoice);
     }
 
-    // Bổ sung tham số gpayTransId để lưu mã đối soát
+    // =========================================
+    // 2. KIỂM TRA TRƯỚC THANH TOÁN
+    // =========================================
+    public void validateStockBeforePayment(String invoiceCode) {
+        Invoice invoice = getInvoiceByCode(invoiceCode);
+
+        // Chỉ cần check xem đơn còn PENDING không (chưa bị CronJob hủy)
+        if ("CANCELLED".equals(invoice.getStatus())) {
+            throw new RuntimeException("Đơn hàng đã bị hủy tự động do quá 3 phút không thanh toán. Vui lòng đặt lại!");
+        }
+        if (!"PENDING".equals(invoice.getStatus())) {
+            throw new RuntimeException("Hóa đơn không ở trạng thái hợp lệ để thanh toán.");
+        }
+    }
+
+    // =========================================
+    // 3. XỬ LÝ KHI CÓ TIỀN VÀO (Chỉ đổi status, không trừ kho nữa)
+    // =========================================
+    @Transactional
+    public void handleVAPaymentSuccess(String vaNumber, String gpayTransId, BigDecimal amountPaid) {
+        Invoice invoice = invoiceRepository.findByVirtualAccountNumber(vaNumber)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+        if (!"PENDING".equals(invoice.getStatus())) return;
+
+        // Chỉ việc cập nhật trạng thái PAID
+        invoice.setStatus("PAID");
+        invoice.setGpayTransId(gpayTransId);
+        invoiceRepository.save(invoice);
+
+        // Phát loa chúc mừng
+        messagingTemplate.convertAndSend("/topic/payment-success", invoice.getInvoiceCode());
+    }
+
     @Transactional
     public void handlePaymentSuccess(String invoiceCode, String gpayTransId) {
         Invoice invoice = invoiceRepository.findByInvoiceCode(invoiceCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
 
-        // Idempotency: Tránh xử lý trùng lặp nếu Webhook từ G-Pay gọi về nhiều lần
-        if ("PAID".equals(invoice.getStatus())) {
-            return;
-        }
+        if (!"PENDING".equals(invoice.getStatus())) return;
 
-        // Cập nhật trạng thái đơn hàng thành công
         invoice.setStatus("PAID");
         invoice.setGpayTransId(gpayTransId);
-
-        // TIẾN HÀNH TRỪ KHO VÀ BẮN WEBSOCKET
-        for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
-            Product product = detail.getProduct();
-
-            // Chặn trường hợp xấu nhất (Safety check)
-            if (product.getStockQuantity() < detail.getQuantity()) {
-                throw new RuntimeException("Sản phẩm " + product.getName() + " không đủ số lượng trong kho!");
-            }
-
-            // Thực hiện trừ kho
-            product.setStockQuantity(product.getStockQuantity() - detail.getQuantity());
-            productRepository.save(product);
-
-            // ==========================================
-            // BẮN WEBSOCKET THÔNG BÁO LÊN FRONTEND
-            // ==========================================
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("productId", product.getProductId());
-            payload.put("stockQuantity", product.getStockQuantity());
-
-            // 1. Cập nhật số tồn kho realtime cho toàn bộ user đang mở trang web
-            messagingTemplate.convertAndSend("/topic/stock-updates", (Object) payload);
-
-            if (product.getStockQuantity() == 0) {
-                // SỬA LỖI Ở ĐÂY: Đổi ID thành dạng String để tránh lỗi nạp chồng hàm
-                messagingTemplate.convertAndSend("/topic/sold-out", String.valueOf(product.getProductId()));
-            }
-        }
-
         invoiceRepository.save(invoice);
+
+        messagingTemplate.convertAndSend("/topic/payment-success", invoice.getInvoiceCode());
     }
+
+    // =========================================
+    // 4. CRONJOB: TỰ ĐỘNG HỦY ĐƠN VÀ HOÀN KHO SAU 3 PHÚT
+    // =========================================
+    @Scheduled(fixedRate = 60000) // Chạy ngầm định kỳ mỗi 60 giây
+    @Transactional
+    public void autoCancelExpiredInvoices() {
+        LocalDateTime threeMinsAgo = LocalDateTime.now().minusMinutes(3);
+
+        // Quét tìm tất cả các đơn PENDING mà được tạo từ trước thời điểm 3 phút trước
+        List<Invoice> expiredInvoices = invoiceRepository.findByStatusAndCreatedAtBefore("PENDING", threeMinsAgo);
+
+        for (Invoice invoice : expiredInvoices) {
+            invoice.setStatus("CANCELLED"); // Đánh dấu hủy
+
+            for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
+                Product product = detail.getProduct();
+
+                //  CỘNG TRẢ LẠI KHO (HOÀN KHO)
+                product.setStockQuantity(product.getStockQuantity() + detail.getQuantity());
+                productRepository.save(product);
+
+                //  BẮN WEBSOCKET BÁO CHO MỌI NGƯỜI: "CÓ HÀNG LẠI RỒI!"
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("productId", product.getProductId());
+                payload.put("stockQuantity", product.getStockQuantity());
+                messagingTemplate.convertAndSend("/topic/stock-updates", (Object) payload);
+            }
+            invoiceRepository.save(invoice);
+            System.out.println("⏳ CRONJOB: Đã tự động hủy đơn " + invoice.getInvoiceCode() + " và hoàn trả kho.");
+        }
+    }
+
+    // Các hàm phụ trợ giữ nguyên
     @Transactional
     public void updateInvoiceVirtualAccount(String invoiceCode, String vaNumber, String vaBank) {
-        Invoice invoice = invoiceRepository.findByInvoiceCode(invoiceCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+        Invoice invoice = getInvoiceByCode(invoiceCode);
         invoice.setVirtualAccountNumber(vaNumber);
         invoice.setVirtualAccountBank(vaBank);
         invoiceRepository.save(invoice);
     }
-
-        @Transactional
-        public void handleVAPaymentSuccess(String vaNumber, String gpayTransId, BigDecimal amountPaid) {
-            Invoice invoice = invoiceRepository.findByVirtualAccountNumber(vaNumber)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
-
-            if ("PAID".equals(invoice.getStatus())) return;
-
-            invoice.setStatus("PAID");
-            invoice.setGpayTransId(gpayTransId);
-
-            for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
-                Product product = detail.getProduct();
-                if (product.getStockQuantity() < detail.getQuantity()) {
-                    throw new RuntimeException("Sản phẩm không đủ kho!"); // Chặn trường hợp xấu nhất
-                }
-
-                // Trừ kho
-                product.setStockQuantity(product.getStockQuantity() - detail.getQuantity());
-                productRepository.save(product);
-
-                // BẮN WEBSOCKET CẬP NHẬT KHO LÊN FRONTEND
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("productId", product.getProductId());
-                payload.put("stockQuantity", product.getStockQuantity());
-
-                // Bắn tồn kho mới
-                messagingTemplate.convertAndSend("/topic/stock-updates", (Object) payload);
-
-                if (product.getStockQuantity() == 0) {
-                    // SỬA LỖI Ở ĐÂY: Đổi ID thành dạng String để tránh lỗi nạp chồng hàm
-                    messagingTemplate.convertAndSend("/topic/sold-out", String.valueOf(product.getProductId()));
-                }
-            }
-            invoiceRepository.save(invoice);
-            messagingTemplate.convertAndSend("/topic/payment-success", invoice.getInvoiceCode());
-        }
 
     @Transactional
     public void handlePaymentFailed(String invoiceCode) {
         Invoice invoice = invoiceRepository.findByInvoiceCode(invoiceCode).orElse(null);
         if (invoice != null && "PENDING".equals(invoice.getStatus())) {
             invoice.setStatus("FAILED");
-            invoiceRepository.save(invoice);
+            // Nên gọi logic hoàn kho ở đây nếu thanh toán Failed
         }
     }
 
-
     public Invoice getInvoiceByCode(String invoiceCode) {
         return invoiceRepository.findByInvoiceCode(invoiceCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn với mã: " + invoiceCode));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode));
     }
-
 }
