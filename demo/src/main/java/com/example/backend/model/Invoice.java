@@ -39,8 +39,10 @@ public class Invoice {
     @Column(name = "buyer_phone", nullable = false, length = 15)
     private String buyerPhone;
 
-    @Column(name = "status", length = 20)
-    private String status = "PENDING"; // PENDING, ORDER_SUCCESS, FAILED
+    // PENDING, PAID, PARTIALLY_PAID, EXPIRED, FAILED, CANCELED_OUT_OF_STOCK
+    // length 30: "CANCELED_OUT_OF_STOCK" dài 21 ký tự, vượt giới hạn 20 cũ
+    @Column(name = "status", length = 30)
+    private String status = "PENDING";
 
     // 👉 BỔ SUNG: Lưu mã bill_id do G-Pay trả về sau khi gọi init-order thành công
     @Column(name = "gpay_bill_id", length = 100)

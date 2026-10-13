@@ -41,4 +41,8 @@ public class InvoiceDetail {
 
     @Column(name = "line_total", nullable = false, precision = 15, scale = 2)
     private BigDecimal lineTotal;
+
+    // PENDING (chưa hạch toán), FULFILLED (đã trừ kho), OUT_OF_STOCK (hết hàng, dòng này không được giao)
+    @Column(name = "status", length = 20)
+    private String status = "PENDING";
 }
