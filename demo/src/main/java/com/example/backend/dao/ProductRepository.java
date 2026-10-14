@@ -13,11 +13,4 @@ import java.util.Optional;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    /**
-     * SELECT ... FOR UPDATE: khoá dòng product cho tới khi transaction kết thúc.
-     * Mọi chỗ ĐỌC-RỒI-SỬA stockQuantity đều phải đi qua hàm này.
-     */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Product p WHERE p.productId = :id")
-    Optional<Product> findByIdForUpdate(@Param("id") Long id);
 }

@@ -11,6 +11,8 @@ import com.example.backend.model.Seller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,28 +24,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 
-/**
- * MÔ HÌNH: KHÔNG GIỮ HÀNG LÚC TẠO ĐƠN - CHỈ TRỪ KHO KHI TIỀN VỀ (WEBHOOK), XỬ LÝ TỪNG DÒNG SẢN PHẨM.
- *  - Tạo đơn: không lock, không trừ kho.
- *  - Webhook thành công: mở transaction -> với từng sản phẩm (id tăng dần): khoá -> đủ hàng thì trừ kho,
- *    thiếu hàng thì đánh dấu dòng đó OUT_OF_STOCK -> commit (vài ms).
- *  - Trạng thái đơn: tất cả dòng đủ -> PAID; một phần -> PARTIALLY_PAID; không dòng nào -> CANCELED_OUT_OF_STOCK.
- *  - Dừng ở bước chốt DB: không xử lý hoàn tiền, dòng hết hàng chỉ được đánh dấu OUT_OF_STOCK.
- */
 @Service
 public class InvoiceService {
 
     private static final Logger log = LoggerFactory.getLogger(InvoiceService.class);
 
-    // Không còn giữ hàng nên không cần hủy sau 3 phút nữa; chỉ dọn các đơn bỏ dở.
-    // Nên cho bằng thời hạn hiệu lực của bill bên G-Pay.
     private static final long INVOICE_EXPIRE_MINUTES = 30;
 
     @Autowired
@@ -55,8 +42,37 @@ public class InvoiceService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    // 👉 THÊM: Inject Redis Template
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    // 👉 THÊM: Định nghĩa Lua Script trừ kho an toàn
+    // Lấy giá trị, so sánh, trừ đi và trả về 1 nếu thành công, 0 nếu không đủ hàng
+    private static final String LUA_SCRIPT_DECR_STOCK =
+            "local stock = tonumber(redis.call('get', KEYS[1])) " +
+                    "local amount = tonumber(ARGV[1]) " +
+                    "if stock and stock >= amount then " +
+                    "    redis.call('decrby', KEYS[1], amount) " +
+                    "    return 1 " +
+                    "else " +
+                    "    return 0 " +
+                    "end";
+
     // =========================================
-    // 1. TẠO ĐƠN (KHÔNG LOCK, KHÔNG TRỪ KHO)
+    // Hàm phụ trợ đọc tồn kho từ Redis
+    // =========================================
+    private int getStockFromRedis(Long productId) {
+        String key = "product:" + productId + ":stock";
+        String stockStr = redisTemplate.opsForValue().get(key);
+        if (stockStr == null) {
+            // Nếu Redis mất dữ liệu, fallback về 0 để an toàn (hoặc có thể query MySQL để nạp lại)
+            return 0;
+        }
+        return Integer.parseInt(stockStr);
+    }
+
+    // =========================================
+    // 1. TẠO ĐƠN (KHÔNG LOCK, RÀO MỀM TRÊN REDIS)
     // =========================================
     @Transactional
     public Invoice createInvoice(OrderRequest request) {
@@ -72,7 +88,6 @@ public class InvoiceService {
         invoice.setBuyerPhone(request.getBuyerPhone());
         invoice.setStatus("PENDING");
 
-        // Gộp các item trùng productId
         Map<Long, Integer> quantityByProduct = new TreeMap<>();
         for (OrderRequest.OrderItem item : request.getItems()) {
             if (item.getQuantity() <= 0) {
@@ -89,9 +104,9 @@ public class InvoiceService {
             Product product = productRepository.findById(entry.getKey())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-            // RÀO MỀM (không lock, không trừ kho): gom TẤT CẢ sản phẩm đang thiếu để báo một lần,
-            // khách bỏ chúng khỏi giỏ rồi vẫn đặt được phần còn lại.
-            if (product.getStockQuantity() < quantity) {
+            // 👉 SỬA: Đọc tồn kho từ Redis thay vì MySQL để rào mềm giảm tải
+            int currentStock = getStockFromRedis(product.getProductId());
+            if (currentStock < quantity) {
                 outOfStockNames.add(product.getName());
                 continue;
             }
@@ -118,7 +133,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 2. KIỂM TRA TRƯỚC KHI ĐI THANH TOÁN
+    // 2. KIỂM TRA TRƯỚC KHI ĐI THANH TOÁN (RÀO MỀM TRÊN REDIS)
     // =========================================
     @Transactional(readOnly = true)
     public void validateStockBeforePayment(String invoiceCode) {
@@ -134,12 +149,12 @@ public class InvoiceService {
             throw new RuntimeException("Hóa đơn không ở trạng thái hợp lệ để thanh toán.");
         }
 
-        // RÀO MỀM: kho đã chắc chắn không đủ cho dòng nào thì báo luôn, đừng để khách trả tiền rồi mới bị hoàn.
-        // (Không lock - chỉ là cảnh báo sớm. Khoá thật nằm ở settlePayment.)
         List<String> outOfStockNames = new ArrayList<>();
         for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
             Product product = detail.getProduct();
-            if (product.getStockQuantity() < detail.getQuantity()) {
+            // 👉 SỬA: Đọc tồn kho từ Redis
+            int currentStock = getStockFromRedis(product.getProductId());
+            if (currentStock < detail.getQuantity()) {
                 outOfStockNames.add(product.getName());
             }
         }
@@ -150,7 +165,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 3. NHẬN KẾT QUẢ THANH TOÁN -> LOCK + TRỪ KHO TỪNG DÒNG
+    // 3. NHẬN KẾT QUẢ THANH TOÁN -> TRỪ KHO BẰNG REDIS LUA SCRIPT
     // =========================================
     @Transactional
     public void handleVAPaymentSuccess(String vaNumber, String gpayTransId, BigDecimal amountPaid) {
@@ -166,13 +181,7 @@ public class InvoiceService {
         settlePayment(invoice, gpayTransId);
     }
 
-    /**
-     * Hạch toán một khoản tiền đã về. Gọi khi ĐÃ giữ khoá dòng invoice.
-     * Thứ tự khoá cố định: invoice -> product (productId tăng dần) nên không deadlock.
-     */
     private void settlePayment(Invoice invoice, String gpayTransId) {
-        // Đơn đã chốt: webhook gửi lại hoặc đến muộn -> bỏ qua, không trừ kho lần nữa.
-        // Các trạng thái còn lại (PENDING, EXPIRED, FAILED...) đều xử lý vì tiền thật đã về.
         String current = invoice.getStatus();
         if ("PAID".equals(current) || "PARTIALLY_PAID".equals(current) || "CANCELED_OUT_OF_STOCK".equals(current)) {
             log.info("Bỏ qua webhook cho đơn {} (đã chốt: {})", invoice.getInvoiceCode(), current);
@@ -181,9 +190,6 @@ public class InvoiceService {
 
         invoice.setGpayTransId(gpayTransId);
 
-        // Gom các dòng theo product, sắp xếp id tăng dần để khoá theo thứ tự cố định.
-        // Trước khi khoá chỉ dùng getProductId() (không chạm field khác), nếu không Hibernate có thể
-        // đã nạp product với stock cũ và query có lock sẽ chỉ khoá chứ không nạp lại dữ liệu.
         Map<Long, List<InvoiceDetail>> detailsByProduct = new TreeMap<>();
         for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
             detailsByProduct
@@ -194,33 +200,53 @@ public class InvoiceService {
         int fulfilledCount = 0;
         int outOfStockCount = 0;
 
-        // Mỗi sản phẩm độc lập với nhau: khoá -> đủ hàng thì trừ, thiếu thì đánh dấu dòng đó.
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(LUA_SCRIPT_DECR_STOCK, Long.class);
+
+        // 👉 SỬA LỚN: Xử lý trừ kho bằng Lua Script
         for (Map.Entry<Long, List<InvoiceDetail>> entry : detailsByProduct.entrySet()) {
+            Long productId = entry.getKey();
             List<InvoiceDetail> lines = entry.getValue();
             int needed = lines.stream().mapToInt(InvoiceDetail::getQuantity).sum();
 
-            Product product = productRepository.findByIdForUpdate(entry.getKey())
+            // Lấy product bình thường, KHÔNG CÒN findByIdForUpdate (Bỏ Pessimistic Lock MySQL)
+            Product product = productRepository.findById(productId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-            if (product.getStockQuantity() >= needed) {
-                product.setStockQuantity(product.getStockQuantity() - needed);
+            // Gọi Redis Lua Script để trừ kho
+            String redisKey = "product:" + productId + ":stock";
+            Long result = redisTemplate.execute(
+                    script,
+                    Collections.singletonList(redisKey),
+                    String.valueOf(needed)
+            );
+
+            // result == 1L nghĩa là Lua Script trừ kho trên Redis thành công
+            if (result != null && result == 1L) {
+                // Lấy số dư mới nhất trên Redis sau khi trừ để update xuống MySQL
+                int updatedStockOnRedis = getStockFromRedis(productId);
+
+                // Đồng bộ xuống MySQL (chỉ update, không cần khóa dòng)
+                product.setStockQuantity(updatedStockOnRedis);
                 productRepository.save(product);
+
                 lines.forEach(d -> d.setStatus("FULFILLED"));
                 fulfilledCount++;
 
                 publishStockUpdate(product);
-                if (product.getStockQuantity() == 0) {
+                if (updatedStockOnRedis == 0) {
                     publishAfterCommit("/topic/sold-out", String.valueOf(product.getProductId()));
                 }
             } else {
+                // Thất bại: trả về 0 (hết hàng) hoặc null
+                int currentStock = getStockFromRedis(productId);
                 log.warn("Đơn {}: sản phẩm {} thiếu hàng (còn {} < cần {})",
-                        invoice.getInvoiceCode(), product.getProductId(), product.getStockQuantity(), needed);
+                        invoice.getInvoiceCode(), productId, currentStock, needed);
                 lines.forEach(d -> d.setStatus("OUT_OF_STOCK"));
                 outOfStockCount++;
             }
         }
 
-        // Chốt trạng thái đơn theo kết quả từng dòng
+        // Chốt trạng thái đơn
         if (outOfStockCount == 0) {
             invoice.setStatus("PAID");
             publishAfterCommit("/topic/payment-success", invoice.getInvoiceCode());
@@ -236,7 +262,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 4. THANH TOÁN THẤT BẠI: chỉ đổi trạng thái (chưa trừ kho nên không có gì để hoàn)
+    // 4. THANH TOÁN THẤT BẠI
     // =========================================
     @Transactional
     public void handlePaymentFailed(String invoiceCode) {
@@ -248,9 +274,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 5. CRONJOB: DỌN ĐƠN BỎ DỞ (KHÔNG ĐỘNG TỚI KHO)
-    //    TUYỆT ĐỐI không cộng kho ở đây: đơn PENDING chưa từng bị trừ kho,
-    //    cộng vào sẽ làm tồn kho "ảo" và gây bán quá số lượng.
+    // 5. CRONJOB: DỌN ĐƠN BỎ DỞ
     // =========================================
     @Scheduled(fixedRate = 60000)
     @Transactional
@@ -281,11 +305,10 @@ public class InvoiceService {
     private void publishStockUpdate(Product product) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("productId", product.getProductId());
-        payload.put("stockQuantity", product.getStockQuantity());
+        payload.put("stockQuantity", product.getStockQuantity()); // Lấy số mới nhất vừa đồng bộ
         publishAfterCommit("/topic/stock-updates", payload);
     }
 
-    /** Chỉ gửi WebSocket sau khi transaction commit thành công (rollback thì không gửi). */
     private void publishAfterCommit(String destination, Object payload) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
