@@ -19,14 +19,14 @@ public class RedisInitRunner implements CommandLineRunner {
     private StringRedisTemplate redisTemplate;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         List<Product> products = productRepository.findAll();
         for (Product product : products) {
             String redisKey = "product:" + product.getProductId() + ":stock";
-            // Set giá trị tồn kho lên Redis.
-            // Nên dùng setIfAbsent hoặc luôn ghi đè tùy vào chiến lược của bạn.
-            redisTemplate.opsForValue().set(redisKey, String.valueOf(product.getStockQuantity()));
+            //  SỬA: Dùng setIfAbsent (SETNX) - Chỉ nạp từ MySQL nếu trên Redis chưa có key này.
+            // Nếu chỉ restart Spring Boot mà Redis vẫn sống, giữ nguyên số chuẩn trên Redis.
+            redisTemplate.opsForValue().setIfAbsent(redisKey, String.valueOf(product.getStockQuantity()));
         }
-        System.out.println("Đã đồng bộ tồn kho từ MySQL lên Redis thành công!");
+        System.out.println("Đã kiểm tra và đồng bộ tồn kho lên Redis thành công!");
     }
 }

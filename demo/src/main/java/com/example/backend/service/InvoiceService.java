@@ -30,7 +30,6 @@ import java.util.*;
 public class InvoiceService {
 
     private static final Logger log = LoggerFactory.getLogger(InvoiceService.class);
-
     private static final long INVOICE_EXPIRE_MINUTES = 30;
 
     @Autowired
@@ -41,32 +40,32 @@ public class InvoiceService {
     private SellerRepository sellerRepository;
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
-
-    // 👉 THÊM: Inject Redis Template
     @Autowired
     private StringRedisTemplate redisTemplate;
 
-    // 👉 THÊM: Định nghĩa Lua Script trừ kho an toàn
-    // Lấy giá trị, so sánh, trừ đi và trả về 1 nếu thành công, 0 nếu không đủ hàng
+    //  NÂNG CẤP LUA SCRIPT:
+    // Nếu đủ hàng: trừ kho và trả về chính xgit ác SỐ TỒN KHO CÒN LẠI (>= 0).
+    // Nếu thiếu hàng: trả về -1.
     private static final String LUA_SCRIPT_DECR_STOCK =
             "local stock = tonumber(redis.call('get', KEYS[1])) " +
                     "local amount = tonumber(ARGV[1]) " +
                     "if stock and stock >= amount then " +
-                    "    redis.call('decrby', KEYS[1], amount) " +
-                    "    return 1 " +
+                    "    return redis.call('decrby', KEYS[1], amount) " +
                     "else " +
-                    "    return 0 " +
+                    "    return -1 " +
                     "end";
 
-    // =========================================
-    // Hàm phụ trợ đọc tồn kho từ Redis
-    // =========================================
     private int getStockFromRedis(Long productId) {
         String key = "product:" + productId + ":stock";
         String stockStr = redisTemplate.opsForValue().get(key);
         if (stockStr == null) {
-            // Nếu Redis mất dữ liệu, fallback về 0 để an toàn (hoặc có thể query MySQL để nạp lại)
-            return 0;
+            // Fallback: Nếu key chưa có trên Redis thì đọc từ MySQL và nạp lên bằng setIfAbsent
+            return productRepository.findById(productId)
+                    .map(p -> {
+                        redisTemplate.opsForValue().setIfAbsent(key, String.valueOf(p.getStockQuantity()));
+                        return p.getStockQuantity();
+                    })
+                    .orElse(0);
         }
         return Integer.parseInt(stockStr);
     }
@@ -104,7 +103,6 @@ public class InvoiceService {
             Product product = productRepository.findById(entry.getKey())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
 
-            // 👉 SỬA: Đọc tồn kho từ Redis thay vì MySQL để rào mềm giảm tải
             int currentStock = getStockFromRedis(product.getProductId());
             if (currentStock < quantity) {
                 outOfStockNames.add(product.getName());
@@ -133,7 +131,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 2. KIỂM TRA TRƯỚC KHI ĐI THANH TOÁN (RÀO MỀM TRÊN REDIS)
+    // 2. KIỂM TRA TRƯỚC KHI ĐI THANH TOÁN
     // =========================================
     @Transactional(readOnly = true)
     public void validateStockBeforePayment(String invoiceCode) {
@@ -152,7 +150,6 @@ public class InvoiceService {
         List<String> outOfStockNames = new ArrayList<>();
         for (InvoiceDetail detail : invoice.getInvoiceDetails()) {
             Product product = detail.getProduct();
-            // 👉 SỬA: Đọc tồn kho từ Redis
             int currentStock = getStockFromRedis(product.getProductId());
             if (currentStock < detail.getQuantity()) {
                 outOfStockNames.add(product.getName());
@@ -165,7 +162,7 @@ public class InvoiceService {
     }
 
     // =========================================
-    // 3. NHẬN KẾT QUẢ THANH TOÁN -> TRỪ KHO BẰNG REDIS LUA SCRIPT
+    // 3. NHẬN KẾT QUẢ THANH TOÁN -> TRỪ KHO AN TOÀN
     // =========================================
     @Transactional
     public void handleVAPaymentSuccess(String vaNumber, String gpayTransId, BigDecimal amountPaid) {
@@ -202,42 +199,41 @@ public class InvoiceService {
 
         DefaultRedisScript<Long> script = new DefaultRedisScript<>(LUA_SCRIPT_DECR_STOCK, Long.class);
 
-        // 👉 SỬA LỚN: Xử lý trừ kho bằng Lua Script
         for (Map.Entry<Long, List<InvoiceDetail>> entry : detailsByProduct.entrySet()) {
             Long productId = entry.getKey();
             List<InvoiceDetail> lines = entry.getValue();
             int needed = lines.stream().mapToInt(InvoiceDetail::getQuantity).sum();
 
-            // Lấy product bình thường, KHÔNG CÒN findByIdForUpdate (Bỏ Pessimistic Lock MySQL)
-            Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            // Đảm bảo key đã có trên Redis trước khi chạy Lua
+            getStockFromRedis(productId);
 
-            // Gọi Redis Lua Script để trừ kho
             String redisKey = "product:" + productId + ":stock";
-            Long result = redisTemplate.execute(
+            Long remainingStock = redisTemplate.execute(
                     script,
                     Collections.singletonList(redisKey),
                     String.valueOf(needed)
             );
 
-            // result == 1L nghĩa là Lua Script trừ kho trên Redis thành công
-            if (result != null && result == 1L) {
-                // Lấy số dư mới nhất trên Redis sau khi trừ để update xuống MySQL
-                int updatedStockOnRedis = getStockFromRedis(productId);
+            // remainingStock >= 0 nghĩa là trừ kho Redis thành công
+            if (remainingStock != null && remainingStock >= 0) {
+                //  CHỐNG LỖ HỔNG 1: Đăng ký hoàn lại kho Redis nếu MySQL Transaction bị Rollback
+                registerRedisRollbackCompensation(redisKey, needed, invoice.getInvoiceCode());
 
-                // Đồng bộ xuống MySQL (chỉ update, không cần khóa dòng)
-                product.setStockQuantity(updatedStockOnRedis);
-                productRepository.save(product);
+                //  CHỐNG LỖ HỔNG 2: Trừ kho tương đối trong MySQL, không ghi đè bằng save(product)
+                int updatedRows = productRepository.decreaseStockAtomic(productId, needed);
+                if (updatedRows == 0) {
+                    // Nếu DB vì lý do nào đó không đủ hàng dù Redis báo đủ -> ném lỗi để Rollback cả MySQL và hoàn kho Redis
+                    throw new IllegalStateException("Lệch dữ liệu tồn kho giữa Redis và MySQL tại productId=" + productId);
+                }
 
                 lines.forEach(d -> d.setStatus("FULFILLED"));
                 fulfilledCount++;
 
-                publishStockUpdate(product);
-                if (updatedStockOnRedis == 0) {
-                    publishAfterCommit("/topic/sold-out", String.valueOf(product.getProductId()));
+                publishStockUpdate(productId, remainingStock.intValue());
+                if (remainingStock == 0) {
+                    publishAfterCommit("/topic/sold-out", String.valueOf(productId));
                 }
             } else {
-                // Thất bại: trả về 0 (hết hàng) hoặc null
                 int currentStock = getStockFromRedis(productId);
                 log.warn("Đơn {}: sản phẩm {} thiếu hàng (còn {} < cần {})",
                         invoice.getInvoiceCode(), productId, currentStock, needed);
@@ -246,7 +242,6 @@ public class InvoiceService {
             }
         }
 
-        // Chốt trạng thái đơn
         if (outOfStockCount == 0) {
             invoice.setStatus("PAID");
             publishAfterCommit("/topic/payment-success", invoice.getInvoiceCode());
@@ -259,6 +254,24 @@ public class InvoiceService {
         }
         invoiceRepository.save(invoice);
         log.info("Đã chốt đơn {} với trạng thái {}", invoice.getInvoiceCode(), invoice.getStatus());
+    }
+
+    /**
+     * Bẫy sự kiện Rollback của MySQL để hoàn lại số lượng đã trừ trên Redis.
+     */
+    private void registerRedisRollbackCompensation(String redisKey, int deductedAmount, String invoiceCode) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                        redisTemplate.opsForValue().increment(redisKey, deductedAmount);
+                        log.error("ROLLBACK COMPENSATED: MySQL rollback ở đơn {}, đã cộng trả lại {} vào Redis key {}",
+                                invoiceCode, deductedAmount, redisKey);
+                    }
+                }
+            });
+        }
     }
 
     // =========================================
@@ -302,10 +315,10 @@ public class InvoiceService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode));
     }
 
-    private void publishStockUpdate(Product product) {
+    private void publishStockUpdate(Long productId, int newStockQuantity) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("productId", product.getProductId());
-        payload.put("stockQuantity", product.getStockQuantity()); // Lấy số mới nhất vừa đồng bộ
+        payload.put("productId", productId);
+        payload.put("stockQuantity", newStockQuantity);
         publishAfterCommit("/topic/stock-updates", payload);
     }
 
