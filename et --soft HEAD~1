@@ -1,0 +1,9 @@
+  feature/hard-lock[m
+* [32mfix/prevent-overselling[m
+  main[m
+  redis[m
+  [31mremotes/origin/HEAD[m -> origin/main
+  [31mremotes/origin/feature/hard-lock[m
+  [31mremotes/origin/fix/prevent-overselling[m
+  [31mremotes/origin/main[m
+  [31mremotes/origin/redis[m

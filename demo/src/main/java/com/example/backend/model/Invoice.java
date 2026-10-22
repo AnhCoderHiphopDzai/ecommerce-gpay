@@ -1,5 +1,6 @@
 package com.example.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -69,6 +70,14 @@ public class Invoice {
     @JoinColumn(name = "seller_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Seller seller;
+
+    // 👉 BỔ SUNG (Auth): chủ sở hữu hóa đơn (tài khoản đã tạo đơn).
+    // Cho phép null để các hóa đơn cũ (tạo trước khi có đăng nhập) vẫn hợp lệ.
+    // @JsonIgnore: không trả thông tin tài khoản ra JSON của hóa đơn.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private User user;
 
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference

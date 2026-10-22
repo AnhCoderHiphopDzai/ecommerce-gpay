@@ -3,11 +3,13 @@ package com.example.backend.service;
 import com.example.backend.dao.InvoiceRepository;
 import com.example.backend.dao.ProductRepository;
 import com.example.backend.dao.SellerRepository;
+import com.example.backend.dao.UserRepository;
 import com.example.backend.dto.OrderRequest;
 import com.example.backend.model.Invoice;
 import com.example.backend.model.InvoiceDetail;
 import com.example.backend.model.Product;
 import com.example.backend.model.Seller;
+import com.example.backend.security.AppUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -38,6 +41,9 @@ public class InvoiceService {
     private ProductRepository productRepository;
     @Autowired
     private SellerRepository sellerRepository;
+    // 👉 BỔ SUNG (Auth)
+    @Autowired
+    private UserRepository userRepository;
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
     @Autowired
@@ -74,7 +80,7 @@ public class InvoiceService {
     // 1. TẠO ĐƠN (KHÔNG LOCK, RÀO MỀM TRÊN REDIS)
     // =========================================
     @Transactional
-    public Invoice createInvoice(OrderRequest request) {
+    public Invoice createInvoice(OrderRequest request, AppUserDetails principal) {
         Seller seller = sellerRepository.findById(request.getSellerId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Seller"));
 
@@ -83,8 +89,13 @@ public class InvoiceService {
         invoice.setInvoiceCode("GPAY" + datePart + (1000 + new Random().nextInt(9000)));
 
         invoice.setSeller(seller);
-        invoice.setBuyerName(request.getBuyerName());
-        invoice.setBuyerPhone(request.getBuyerPhone());
+        // 👉 BỔ SUNG (Auth): gắn hóa đơn với tài khoản đang đăng nhập
+        invoice.setUser(userRepository.getReferenceById(principal.getId()));
+        // Form không nhập tên/SĐT thì lấy từ hồ sơ tài khoản
+        invoice.setBuyerName(StringUtils.hasText(request.getBuyerName())
+                ? request.getBuyerName().trim() : principal.getFullName());
+        invoice.setBuyerPhone(StringUtils.hasText(request.getBuyerPhone())
+                ? request.getBuyerPhone().trim() : principal.getPhone());
         invoice.setStatus("PENDING");
 
         Map<Long, Integer> quantityByProduct = new TreeMap<>();
@@ -308,6 +319,22 @@ public class InvoiceService {
         invoice.setVirtualAccountNumber(vaNumber);
         invoice.setVirtualAccountBank(vaBank);
         invoiceRepository.save(invoice);
+    }
+
+    /**
+     * 👉 BỔ SUNG (Auth): lấy hóa đơn cho người đang đăng nhập.
+     * Chỉ chủ hóa đơn hoặc ADMIN mới xem được.
+     * Không phải chủ thì báo "không tìm thấy" (giống mã không tồn tại) để không lộ mã nào có thật.
+     */
+    @Transactional(readOnly = true)
+    public Invoice getInvoiceForUser(String invoiceCode, AppUserDetails principal) {
+        Invoice invoice = getInvoiceByCode(invoiceCode);
+        boolean isOwner = invoice.getUser() != null
+                && Objects.equals(invoice.getUser().getUserId(), principal.getId());
+        if (!isOwner && !principal.isAdmin()) {
+            throw new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode);
+        }
+        return invoice;
     }
 
     public Invoice getInvoiceByCode(String invoiceCode) {

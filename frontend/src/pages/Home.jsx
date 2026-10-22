@@ -4,13 +4,22 @@ import SockJS from 'sockjs-client/dist/sockjs'; // Import chuẩn chống lỗi 
 import { Client } from '@stomp/stompjs';
 import './Home.css';
 import Swal from 'sweetalert2';
+import { useAuth } from '../context/AuthContext.jsx'; // 👉 BỔ SUNG (Auth)
+
+// 👉 BỔ SUNG (Auth): backend giờ có thể trả lỗi dạng JSON {message}, nên lấy đúng chữ để hiển thị
+// (nếu dùng thẳng error.response.data thì alert sẽ hiện "[object Object]")
+const getErrorMessage = (error) => {
+    const data = error.response?.data;
+    return (typeof data === 'string' ? data : data?.message) || error.message;
+};
 
 const Home = () => {
+    const { user } = useAuth(); // 👉 BỔ SUNG (Auth): điền sẵn họ tên và số điện thoại từ tài khoản
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const [buyerName, setBuyerName] = useState('');
-    const [buyerPhone, setBuyerPhone] = useState('');
+    const [buyerName, setBuyerName] = useState(user?.fullName || '');
+    const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
     const [previewInvoice, setPreviewInvoice] = useState(null);
     const [vaData, setVaData] = useState(null);
     const invoiceRef = useRef(null);
@@ -157,7 +166,7 @@ const Home = () => {
             setIsCartOpen(false);
             setVaData(null);
         } catch (error) {
-            alert("Tạo đơn thất bại: " + (error.response?.data || error.message));
+            alert("Tạo đơn thất bại: " + getErrorMessage(error));
         }
     };
 
@@ -172,7 +181,7 @@ const Home = () => {
             window.location.href = paymentRes.data;
         } catch (error) {
             // Hiển thị trực tiếp câu lỗi "Khách khác đang thanh toán..." từ Backend trả về
-            alert("⚠️ Không thể thanh toán: " + (error.response?.data || error.message));
+            alert("⚠️ Không thể thanh toán: " + getErrorMessage(error));
         }
     };
 
@@ -184,7 +193,7 @@ const Home = () => {
             setVaData(vaRes.data);
         } catch (error) {
             // Hiển thị trực tiếp câu lỗi "Khách khác đang thanh toán..." từ Backend trả về
-            alert("⚠️ Không thể tạo mã QR: " + (error.response?.data || error.message));
+            alert("⚠️ Không thể tạo mã QR: " + getErrorMessage(error));
         }
     };
 

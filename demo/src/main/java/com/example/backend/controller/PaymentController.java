@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.model.Invoice;
+import com.example.backend.security.AppUserDetails;
 import com.example.backend.service.InvoiceService;
 import com.example.backend.service.PaymentService;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.JsonParser;
 import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
@@ -23,7 +25,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payment")
-@CrossOrigin("*")
 public class PaymentController {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
@@ -42,10 +43,17 @@ public class PaymentController {
     private org.springframework.core.io.Resource gpayPublicKeyResource;
 
     @GetMapping("/get-url")
-    public ResponseEntity<?> getPaymentUrl(@RequestParam String invoiceCode, @RequestParam int amount) {
+    public ResponseEntity<?> getPaymentUrl(@RequestParam String invoiceCode,
+                                           // 👉 BỔ SUNG (Auth): giữ tham số này để frontend cũ không lỗi nhưng KHÔNG dùng nữa.
+                                           // Trước đây client tự gửi số tiền nên có thể tạo đơn 10 triệu rồi gửi amount=1000.
+                                           @RequestParam(required = false) Integer amount,
+                                           @AuthenticationPrincipal AppUserDetails principal) {
         try {
+            // Chỉ chủ hóa đơn (hoặc ADMIN) mới được tạo link thanh toán
+            Invoice invoice = invoiceService.getInvoiceForUser(invoiceCode, principal);
             invoiceService.validateStockBeforePayment(invoiceCode);
-            String billUrl = paymentService.createPaymentUrl(invoiceCode, amount);
+            // Số tiền luôn lấy từ hóa đơn trong DB (đúng như luồng Virtual Account bên dưới)
+            String billUrl = paymentService.createPaymentUrl(invoiceCode, invoice.getTotalAmount().intValue());
             return ResponseEntity.ok(billUrl);
         } catch (Exception e) {
             log.error("Lỗi khi tạo URL thanh toán G-Pay cho hóa đơn: {}", invoiceCode, e);
@@ -164,10 +172,12 @@ public class PaymentController {
     }
 
     @GetMapping("/get-va")
-    public ResponseEntity<?> getVirtualAccount(@RequestParam String invoiceCode) {
+    public ResponseEntity<?> getVirtualAccount(@RequestParam String invoiceCode,
+                                               @AuthenticationPrincipal AppUserDetails principal) { // 👉 BỔ SUNG (Auth)
         try {
+            // Kiểm tra quyền sở hữu trước, rồi mới kiểm tra tồn kho
+            Invoice invoice = invoiceService.getInvoiceForUser(invoiceCode, principal);
             invoiceService.validateStockBeforePayment(invoiceCode);
-            Invoice invoice = invoiceService.getInvoiceByCode(invoiceCode);
 
             // Gọi sang G-Pay để tạo tài khoản ảo
             Map<String, Object> vaData = paymentService.createVirtualAccount(
