@@ -1,20 +1,19 @@
-import React, { useState, useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import SockJS from 'sockjs-client/dist/sockjs'; // Import chuẩn chống lỗi cho Vite
 import { Client } from '@stomp/stompjs';
 import './Home.css';
 import Swal from 'sweetalert2';
-import { useAuth } from '../context/AuthContext.jsx'; // 👉 BỔ SUNG (Auth)
+import { useAuth } from '../context/AuthContext.jsx';
+import { API_BASE_URL } from '../api/http.js';
 
-// 👉 BỔ SUNG (Auth): backend giờ có thể trả lỗi dạng JSON {message}, nên lấy đúng chữ để hiển thị
-// (nếu dùng thẳng error.response.data thì alert sẽ hiện "[object Object]")
 const getErrorMessage = (error) => {
     const data = error.response?.data;
     return (typeof data === 'string' ? data : data?.message) || error.message;
 };
 
 const Home = () => {
-    const { user } = useAuth(); // 👉 BỔ SUNG (Auth): điền sẵn họ tên và số điện thoại từ tài khoản
+    const { user } = useAuth();
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -23,19 +22,20 @@ const Home = () => {
     const [previewInvoice, setPreviewInvoice] = useState(null);
     const [vaData, setVaData] = useState(null);
     const invoiceRef = useRef(null);
+
     useEffect(() => {
         invoiceRef.current = previewInvoice;
     }, [previewInvoice]);
 
     useEffect(() => {
         // Tải danh sách sản phẩm ban đầu
-        axios.get('http://localhost:8081/api/products')
+        axios.get(`${API_BASE_URL}/api/products`)
             .then(response => setProducts(response.data))
             .catch(error => console.error("Lỗi tải sản phẩm:", error));
 
         // Khởi tạo WebSocket
         const stompClient = new Client({
-            webSocketFactory: () => new SockJS('http://localhost:8081/ws'),
+            webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
             onConnect: () => {
                 console.log(' Đã kết nối WebSocket thành công');
 
@@ -43,12 +43,10 @@ const Home = () => {
                 stompClient.subscribe('/topic/stock-updates', (message) => {
                     const data = JSON.parse(message.body);
 
-                    // Cập nhật số lượng sản phẩm trên giao diện
                     setProducts(prevProducts => prevProducts.map(p =>
                         p.productId === data.productId ? { ...p, stockQuantity: data.stockQuantity } : p
                     ));
 
-                    // Nếu sản phẩm về 0, tự động xóa nó khỏi giỏ hàng
                     if (data.stockQuantity === 0) {
                         setCart(prevCart => prevCart.filter(item => item.product.productId !== data.productId));
                     }
@@ -58,7 +56,6 @@ const Home = () => {
                 stompClient.subscribe('/topic/sold-out', (message) => {
                     const soldOutProductId = parseInt(message.body);
 
-                    // 👉 KIỂM TRA BẰNG REF (Thay vì gọi setPreviewInvoice)
                     if (invoiceRef.current) {
                         const hasSoldOutItem = invoiceRef.current.invoiceDetails.some(
                             detail => detail.product.productId === soldOutProductId
@@ -66,8 +63,8 @@ const Home = () => {
 
                         if (hasSoldOutItem) {
                             alert(" Rất tiếc! Một sản phẩm trong đơn của bạn vừa được khách khác thanh toán xong. Vui lòng tạo đơn mới.");
-                            setVaData(null);         // Tắt mã QR
-                            setPreviewInvoice(null); // Đóng hóa đơn
+                            setVaData(null);
+                            setPreviewInvoice(null);
                         }
                     }
                 });
@@ -76,10 +73,7 @@ const Home = () => {
                 stompClient.subscribe('/topic/payment-success', (message) => {
                     const paidInvoiceCode = message.body;
 
-                    // 👉 KIỂM TRA BẰNG REF (Thay vì gọi setPreviewInvoice)
                     if (invoiceRef.current && invoiceRef.current.invoiceCode === paidInvoiceCode) {
-
-                        // Kích hoạt thông báo nổi SweetAlert2
                         Swal.fire({
                             toast: true,
                             position: 'top-end',
@@ -94,7 +88,6 @@ const Home = () => {
                             }
                         });
 
-                        // Đóng giao diện an toàn
                         setVaData(null);
                         setPreviewInvoice(null);
                     }
@@ -107,11 +100,11 @@ const Home = () => {
 
         stompClient.activate();
 
-        // Cleanup khi component bị hủy
         return () => {
             if (stompClient) stompClient.deactivate();
         };
-    }, []); // Chỉ chạy 1 lần khi render
+    }, []);
+
     // ==========================================
     // 2. LOGIC GIỎ HÀNG & TẠO ĐƠN
     // ==========================================
@@ -160,7 +153,7 @@ const Home = () => {
         };
 
         try {
-            const response = await axios.post('http://localhost:8081/api/invoices', orderPayload);
+            const response = await axios.post(`${API_BASE_URL}/api/invoices`, orderPayload);
             setPreviewInvoice(response.data);
             setCart([]);
             setIsCartOpen(false);
@@ -171,28 +164,26 @@ const Home = () => {
     };
 
     // ==========================================
-    // 3. XỬ LÝ THANH TOÁN (CÓ BẮT LỖI JIT 3 PHÚT)
+    // 3. XỬ LÝ THANH TOÁN
     // ==========================================
     const handleProceedToPayment = async (invoiceCode, amount) => {
         try {
-            const paymentRes = await axios.get(`http://localhost:8081/api/payment/get-url`, {
+            const paymentRes = await axios.get(`${API_BASE_URL}/api/payment/get-url`, {
                 params: { invoiceCode, amount }
             });
             window.location.href = paymentRes.data;
         } catch (error) {
-            // Hiển thị trực tiếp câu lỗi "Khách khác đang thanh toán..." từ Backend trả về
             alert("⚠️ Không thể thanh toán: " + getErrorMessage(error));
         }
     };
 
     const handleProceedToVirtualAccount = async (invoiceCode) => {
         try {
-            const vaRes = await axios.get(`http://localhost:8081/api/payment/get-va`, {
+            const vaRes = await axios.get(`${API_BASE_URL}/api/payment/get-va`, {
                 params: { invoiceCode }
             });
             setVaData(vaRes.data);
         } catch (error) {
-            // Hiển thị trực tiếp câu lỗi "Khách khác đang thanh toán..." từ Backend trả về
             alert("⚠️ Không thể tạo mã QR: " + getErrorMessage(error));
         }
     };
@@ -201,7 +192,6 @@ const Home = () => {
     // GIAO DIỆN HIỂN THỊ
     // ==========================================
 
-    // MÀN HÌNH 1: HÓA ĐƠN & THANH TOÁN
     if (previewInvoice) {
         return (
             <div className="modern-container">
@@ -268,7 +258,6 @@ const Home = () => {
         );
     }
 
-    // MÀN HÌNH 2: GIỎ HÀNG
     if (isCartOpen) {
         return (
             <div className="modern-container">
@@ -300,7 +289,7 @@ const Home = () => {
                                 <h3>Thông tin nhận hàng</h3>
                                 <form onSubmit={handleSubmitOrder}>
                                     <input type="text" placeholder="Họ và tên" required value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
-                                    <input type="tel" placeholder="Số điện thoại" required value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
+                                    <input type="tel" placeholder="Số điện thoại" required value= {buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
                                     <button type="submit" className="btn-checkout">Tạo đơn</button>
                                 </form>
                             </div>
@@ -311,7 +300,6 @@ const Home = () => {
         );
     }
 
-    // MÀN HÌNH 3: TRANG CHỦ (DANH SÁCH SẢN PHẨM)
     return (
         <div className="modern-container">
             <nav className="navbar">

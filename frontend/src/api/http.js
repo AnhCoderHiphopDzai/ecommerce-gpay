@@ -7,7 +7,7 @@
 
 import axios from 'axios';
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081').replace(/\/+$/, '');
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://localhost:8081').replace(/\/+$/, '');
 const API_ORIGIN = new URL(API_BASE_URL).origin;
 const TOKEN_KEY = 'auth_token';
 
@@ -24,6 +24,24 @@ export const tokenStore = {
     try { localStorage.removeItem(TOKEN_KEY); } catch { /* bỏ qua */ }
   },
 };
+
+let refreshPromise = null;
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    }).then(async (response) => {
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (!data?.accessToken) return false;
+      tokenStore.set(data.accessToken);
+      return true;
+    }).catch(() => false).finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
 
 let onUnauthorized = null;
 /** AuthProvider đăng ký hàm này để tự đăng xuất khi server trả 401 (token hết hạn/bị từ chối). */
@@ -49,9 +67,13 @@ export async function apiFetch(input, options = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(url, { ...fetchOptions, headers });
-
-  if (response.status === 401 && attachToken && onUnauthorized) onUnauthorized();
+  let response = await fetch(url, { ...fetchOptions, credentials: 'include', headers });
+  if (response.status === 401 && attachToken && !url.endsWith('/api/auth/refresh')) {
+    if (await refreshAccessToken()) {
+      headers.set('Authorization', `Bearer ${tokenStore.get()}`);
+      response = await fetch(url, { ...fetchOptions, credentials: 'include', headers });
+    } else if (onUnauthorized) onUnauthorized();
+  }
   return response;
 }
 
@@ -73,13 +95,25 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
+axios.defaults.withCredentials = true;
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     // 401 khi đang có token nghĩa là token hết hạn hoặc bị từ chối -> đưa người dùng về trang đăng nhập
-    if (error.response?.status === 401 && tokenStore.get() && error.config
-        && isApiRequest(error.config) && onUnauthorized) {
-      onUnauthorized();
+    const config = error.config;
+    if (error.response?.status === 401 && tokenStore.get() && config
+        && isApiRequest(config) && !config._retry && !String(config.url).endsWith('/api/auth/refresh')) {
+      config._retry = true;
+      return refreshAccessToken().then((refreshed) => {
+        if (refreshed) {
+          config.headers = config.headers || {};
+          config.headers.Authorization = `Bearer ${tokenStore.get()}`;
+          return axios(config);
+        }
+        if (onUnauthorized) onUnauthorized();
+        return Promise.reject(error);
+      });
     }
     return Promise.reject(error);
   },
