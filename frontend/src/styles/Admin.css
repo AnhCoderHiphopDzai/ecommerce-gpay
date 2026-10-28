@@ -1,0 +1,305 @@
+/* Trang quản trị. Giữ cùng ngôn ngữ thị giác với Home.css (nền xám nhạt, thẻ trắng, màu chủ đạo chàm).
+   Home.css reset margin/padding toàn cục nên mọi khoảng cách ở đây đều khai báo rõ. */
+
+.admin-shell {
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --surface: #ffffff;
+  --brand: #4f46e5;
+  --brand-dark: #4338ca;
+  --danger: #b91c1c;
+  --ok: #047857;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--ink);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Đầu trang ---------- */
+.admin-head {
+  margin-bottom: 20px;
+}
+.admin-head h1 {
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+.admin-head p {
+  max-width: 64ch;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.admin-tabs {
+  display: inline-flex;
+  background: var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+}
+.admin-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-tabs button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--brand-dark);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- Bố cục ---------- */
+.admin-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.admin-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.admin-card h2 {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.admin-toolbar h2 {
+  margin: 0 auto 0 0;
+}
+.admin-inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.admin-inline-field select {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+/* ---------- Bảng ---------- */
+.admin-table-wrap {
+  overflow-x: auto;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.admin-table th,
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.admin-table th {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.admin-table .is-zero {
+  color: var(--danger);
+  font-weight: 700;
+}
+.admin-table tr.is-active td {
+  background: #eef2ff;
+}
+.admin-table .actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.admin-table .actions .admin-btn + .admin-btn {
+  margin-left: 6px;
+}
+
+/* ---------- Nút ---------- */
+.admin-btn {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.admin-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.admin-btn--primary {
+  background: var(--brand);
+  color: #fff;
+}
+.admin-btn--primary:hover:not(:disabled) {
+  background: var(--brand-dark);
+}
+.admin-btn--ghost {
+  background: var(--surface);
+  color: var(--brand-dark);
+  border-color: #c7d2fe;
+}
+.admin-btn--ghost:hover:not(:disabled) {
+  background: #eef2ff;
+}
+.admin-btn--danger {
+  background: var(--surface);
+  color: var(--danger);
+  border-color: #fecaca;
+}
+.admin-btn--danger:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+/* ---------- Form ---------- */
+.admin-field {
+  margin-bottom: 14px;
+}
+.admin-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.admin-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.admin-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.admin-field-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 6px;
+}
+.admin-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* ---------- Thông báo và trạng thái rỗng ---------- */
+.admin-note {
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+.admin-note--ok {
+  background: #d1fae5;
+  color: #065f46;
+}
+.admin-note--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.admin-empty {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+/* ---------- Trạng thái hóa đơn (màu mã hóa thông tin, kèm chữ nên không chỉ dựa vào màu) ---------- */
+.admin-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--line);
+  color: #374151;
+}
+.admin-badge--pending { background: #fef3c7; color: #92400e; }
+.admin-badge--paid,
+.admin-badge--fulfilled { background: #d1fae5; color: #065f46; }
+.admin-badge--partially_paid { background: #dbeafe; color: #1e40af; }
+.admin-badge--canceled_out_of_stock,
+.admin-badge--failed,
+.admin-badge--out_of_stock { background: #fee2e2; color: #991b1b; }
+.admin-badge--expired { background: #e5e7eb; color: #4b5563; }
+
+/* ---------- Chi tiết hóa đơn ---------- */
+.admin-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.admin-facts dt {
+  color: var(--muted);
+}
+.admin-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.admin-total {
+  text-align: right;
+  margin-top: 14px;
+  font-size: 16px;
+}
+.admin-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ---------- Bàn phím và màn hình nhỏ ---------- */
+.admin-shell button:focus-visible,
+.admin-shell input:focus-visible,
+.admin-shell select:focus-visible {
+  outline: 3px solid #a5b4fc;
+  outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .admin-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

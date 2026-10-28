@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -30,6 +31,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity   // thiếu dòng này thì @PreAuthorize bị bỏ qua âm thầm
 public class SecurityConfig {
 
     @Bean
@@ -55,7 +57,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws", "/ws/**").permitAll()
                         // Trang /error nội bộ của Spring Boot; nếu chặn, mọi lỗi 4xx/5xx sẽ bị biến thành 401/403
                         .requestMatchers("/error").permitAll()
-                        // --- Còn lại (hóa đơn, thanh toán, /api/auth/me...) bắt buộc đăng nhập ---
+                        // --- Chỉ ADMIN ---
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         // Chưa đăng nhập / token sai / hết hạn -> 401 (mặc định Spring trả 403 gây khó phân biệt)

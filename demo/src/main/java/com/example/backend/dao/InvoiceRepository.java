@@ -2,6 +2,9 @@ package com.example.backend.dao;
 
 import com.example.backend.model.Invoice;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -39,4 +42,14 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     @Modifying
     @Query("UPDATE Invoice i SET i.status = 'EXPIRED' WHERE i.status = 'PENDING' AND i.createdAt < :limit")
     int expirePendingBefore(@Param("limit") LocalDateTime limit);
+
+    // ===== Dành cho trang quản trị (AdminInvoiceService) =====
+    // Nạp luôn user trong cùng một câu truy vấn để mỗi dòng của danh sách không phát sinh thêm một truy vấn riêng.
+
+    @Override
+    @EntityGraph(attributePaths = "user")
+    Page<Invoice> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = "user")
+    Page<Invoice> findByStatus(String status, Pageable pageable);
 }
