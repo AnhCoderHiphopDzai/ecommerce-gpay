@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { adminApi } from '../api/Admin.js';
-import '../styles/admin.css';
+import '../styles/Admin.css';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 const when = (iso) => (iso ? new Date(iso).toLocaleString('vi-VN') : '-');
