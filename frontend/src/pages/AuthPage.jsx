@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/auth-context.js';
 import '../styles/auth.css';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,7 +32,8 @@ function validate(mode, v) {
   }
   if (!EMAIL_RE.test(v.email.trim())) errors.email = 'Nhập email hợp lệ, ví dụ ten@example.com';
   if (mode === 'register') {
-    if (v.password.length < 8 || v.password.length > 72) errors.password = 'Mật khẩu cần từ 8 đến 72 ký tự';
+    if (v.password.length < 12 || v.password.length > 72) errors.password = 'Mật khẩu cần từ 12 đến 72 ký tự';
+    else if (new TextEncoder().encode(v.password).length > 72) errors.password = 'Mật khẩu quá dài (tối đa 72 byte UTF-8)';
     if (v.confirm !== v.password) errors.confirm = 'Mật khẩu nhập lại chưa khớp';
   } else if (!v.password) {
     errors.password = 'Nhập mật khẩu';
@@ -178,7 +179,7 @@ export default function AuthPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete={isRegister ? 'new-password' : 'current-password'}
               value={values.password} onChange={setField('password')} error={errors.password}
-              hint={isRegister ? 'Từ 8 ký tự trở lên' : undefined}
+              hint={isRegister ? 'Từ 12 ký tự trở lên' : undefined}
               trailing={passwordToggle} />
 
             {isRegister && (

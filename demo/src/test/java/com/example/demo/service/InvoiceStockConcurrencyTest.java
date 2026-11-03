@@ -11,10 +11,12 @@ import com.example.backend.service.InvoiceService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -39,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Mỗi test tự tạo dữ liệu (seller, product, invoice) và tự xoá sau khi chạy xong.
  */
 @SpringBootTest
+@Tag("integration")
+@ActiveProfiles("test")
 class InvoiceStockConcurrencyTest {
 
     @Autowired private InvoiceService invoiceService;

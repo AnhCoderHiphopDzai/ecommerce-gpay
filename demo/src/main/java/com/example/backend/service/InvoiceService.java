@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -82,11 +84,14 @@ public class InvoiceService {
     @Transactional
     public Invoice createInvoice(OrderRequest request, AppUserDetails principal) {
         Seller seller = sellerRepository.findById(request.getSellerId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy Seller"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy người bán"));
 
         Invoice invoice = new Invoice();
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        invoice.setInvoiceCode("GPAY" + datePart + (1000 + new Random().nextInt(9000)));
+        // Bốn chữ số ngẫu nhiên chỉ có 9.000 khả năng/ngày và sẽ va chạm sớm khi lượng đơn tăng.
+        // UUID rút gọn vẫn gọn cho người dùng đọc, nhưng không làm unique constraint trở thành lỗi ngẫu nhiên.
+        String uniquePart = UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT);
+        invoice.setInvoiceCode("GPAY" + datePart + "-" + uniquePart);
 
         invoice.setSeller(seller);
         // 👉 BỔ SUNG (Auth): gắn hóa đơn với tài khoản đang đăng nhập
@@ -112,7 +117,7 @@ public class InvoiceService {
         for (Map.Entry<Long, Integer> entry : quantityByProduct.entrySet()) {
             int quantity = entry.getValue();
             Product product = productRepository.findById(entry.getKey())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy sản phẩm"));
 
             int currentStock = getStockFromRedis(product.getProductId());
             if (currentStock < quantity) {
@@ -133,8 +138,9 @@ public class InvoiceService {
         }
 
         if (!outOfStockNames.isEmpty()) {
-            throw new RuntimeException("Sản phẩm đã hết hàng: " + String.join(", ", outOfStockNames)
-                    + ". Vui lòng bỏ khỏi giỏ hàng để tiếp tục.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Sản phẩm đã hết hàng: " + String.join(", ", outOfStockNames)
+                            + ". Vui lòng bỏ khỏi giỏ hàng để tiếp tục.");
         }
 
         invoice.setTotalAmount(totalAmount);
@@ -332,14 +338,14 @@ public class InvoiceService {
         boolean isOwner = invoice.getUser() != null
                 && Objects.equals(invoice.getUser().getUserId(), principal.getId());
         if (!isOwner && !principal.isAdmin()) {
-            throw new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn");
         }
         return invoice;
     }
 
     public Invoice getInvoiceByCode(String invoiceCode) {
         return invoiceRepository.findByInvoiceCode(invoiceCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn: " + invoiceCode));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn"));
     }
 
     private void publishStockUpdate(Long productId, int newStockQuantity) {

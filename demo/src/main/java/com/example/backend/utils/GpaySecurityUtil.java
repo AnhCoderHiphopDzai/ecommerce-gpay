@@ -1,6 +1,8 @@
 package com.example.backend.utils;
 
 import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
@@ -15,6 +17,8 @@ import java.util.Base64;
 
 @Component
 public class GpaySecurityUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(GpaySecurityUtil.class);
 
     public String generateSignature(
             String timestamp,
@@ -97,7 +101,8 @@ public class GpaySecurityUtil {
             return verifier1.verify(signatureBytes);
 
         } catch (Exception e) {
-            System.err.println("Lỗi giải mã chữ ký G-Pay: " + e.getMessage());
+            // Chữ ký sai là input bình thường của webhook không đáng tin; không log payload/chữ ký.
+            log.debug("Từ chối chữ ký G-Pay không hợp lệ ({})", e.getClass().getSimpleName());
             return false;
         }
     }

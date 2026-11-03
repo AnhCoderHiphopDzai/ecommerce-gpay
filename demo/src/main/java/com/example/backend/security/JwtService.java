@@ -32,10 +32,14 @@ public class JwtService {
         this.expirationMillis = Duration.ofMinutes(expirationMinutes).toMillis();
     }
 
-    public String generateToken(String email) {
+    public String generateToken(String email, String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("sessionId không được để trống");
+        }
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .subject(email)
+                .claim("sid", sessionId)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationMillis))
                 .signWith(key, Jwts.SIG.HS256)
@@ -46,13 +50,21 @@ public class JwtService {
      * Kiểm tra chữ ký + hạn dùng rồi trả về email trong token.
      * Token sai/hết hạn/bị sửa sẽ ném JwtException.
      */
-    public String extractEmail(String token) {
-        return Jwts.parser()
+    public SessionIdentity extractIdentity(String token) {
+        var claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .getPayload();
+        String email = claims.getSubject();
+        String sessionId = claims.get("sid", String.class);
+        if (email == null || email.isBlank() || sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("JWT không chứa thông tin phiên hợp lệ");
+        }
+        return new SessionIdentity(email, sessionId);
+    }
+
+    public record SessionIdentity(String email, String sessionId) {
     }
 
     public long getExpiresInSeconds() {

@@ -4,7 +4,7 @@ import SockJS from 'sockjs-client/dist/sockjs'; // Import chuẩn chống lỗi 
 import { Client } from '@stomp/stompjs';
 import './Home.css';
 import Swal from 'sweetalert2';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/auth-context.js';
 import { API_BASE_URL } from '../api/http.js';
 
 const getErrorMessage = (error) => {

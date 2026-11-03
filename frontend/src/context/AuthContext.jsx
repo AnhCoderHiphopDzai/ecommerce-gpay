@@ -1,7 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch, setUnauthorizedHandler, tokenStore } from '../api/http.js';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './auth-context.js';
 
 async function readJson(response) {
   try { return await response.json(); } catch { return {}; }
@@ -30,19 +29,41 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(() => Boolean(tokenStore.get()));
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  const logout = useCallback(() => {
+  const clearLocalSession = useCallback(() => {
     tokenStore.clear();
     setUser(null);
   }, []);
 
+  // Luôn xóa trạng thái ở trình duyệt, kể cả khi backend đang không truy cập được.
+  // Endpoint logout chỉ nhận diện bằng refresh cookie, nên không cần access token còn hiệu lực.
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST', skipAuth: true });
+    } catch {
+      /* người dùng vẫn được đăng xuất cục bộ */
+    } finally {
+      clearLocalSession();
+    }
+  }, [clearLocalSession]);
+
+  const logoutAll = useCallback(async () => {
+    try {
+      await apiFetch('/api/auth/logout-all', { method: 'POST' });
+    } catch {
+      /* phiên cục bộ vẫn phải kết thúc */
+    } finally {
+      clearLocalSession();
+    }
+  }, [clearLocalSession]);
+
   // Server trả 401 ở bất kỳ request nào đang kèm token -> đăng xuất và báo phiên hết hạn
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      logout();
+      clearLocalSession();
       setSessionExpired(true);
     });
     return () => setUnauthorizedHandler(null);
-  }, [logout]);
+  }, [clearLocalSession]);
 
   // Khôi phục phiên khi tải lại trang (kể cả khi quay về từ trang thanh toán G-Pay)
   useEffect(() => {
@@ -81,15 +102,9 @@ export function AuthProvider({ children }) {
   }, [startSession]);
 
   const value = useMemo(
-    () => ({ user, loading, sessionExpired, login, register, logout }),
-    [user, loading, sessionExpired, login, register, logout],
+    () => ({ user, loading, sessionExpired, login, register, logout, logoutAll }),
+    [user, loading, sessionExpired, login, register, logout, logoutAll],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth phải được dùng bên trong <AuthProvider>');
-  return context;
 }

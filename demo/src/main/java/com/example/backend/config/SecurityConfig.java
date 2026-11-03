@@ -2,6 +2,8 @@ package com.example.backend.config;
 
 import com.example.backend.security.JwtAuthFilter;
 import com.example.backend.security.JwtService;
+import com.example.backend.security.SecurityHeadersFilter;
+import com.example.backend.service.SessionService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -37,7 +39,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtService jwtService,
-                                                   UserDetailsService userDetailsService) throws Exception {
+                                                   UserDetailsService userDetailsService,
+                                                   SessionService sessionService) throws Exception {
         http
                 // CSRF chỉ nguy hiểm khi trình duyệt TỰ gửi kèm thông tin đăng nhập (cookie).
                 // Ở đây token nằm trong header Authorization do frontend chủ động gắn, nên tắt CSRF.
@@ -47,7 +50,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // --- Công khai ---
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                         // G-Pay gọi server-to-server nên không có JWT, được bảo vệ bằng chữ ký RSA trong PaymentController
                         .requestMatchers("/api/payment/webhook").permitAll()
@@ -69,8 +73,9 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, e) ->
                                 writeError(res, HttpStatus.FORBIDDEN,
                                         "Bạn không có quyền thực hiện thao tác này")))
-                .addFilterBefore(new JwtAuthFilter(jwtService, userDetailsService),
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwtService, userDetailsService, sessionService),
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new SecurityHeadersFilter(), JwtAuthFilter.class);
 
         return http.build();
     }

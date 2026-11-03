@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/auth-context.js';
 import { adminApi } from '../api/Admin.js';
 import '../styles/Admin.css';
 
@@ -61,7 +61,19 @@ function ProductsPanel() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.listProducts()
+      .then((result) => {
+        if (!cancelled) {
+          setProducts(result);
+          setError('');
+        }
+      })
+      .catch((e) => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   function setField(name) {
     return (event) => {
@@ -211,21 +223,22 @@ function InvoicesPanel() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(0);
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [settledRequest, setSettledRequest] = useState(null);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [selected, setSelected] = useState(null);
   const [detailError, setDetailError] = useState('');
+  const requestKey = `${status}\u0000${page}\u0000${reloadKey}`;
+  const loading = settledRequest !== requestKey;
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     adminApi.listInvoices({ status, page })
       .then((result) => { if (!cancelled) { setData(result); setError(''); } })
       .catch((e) => { if (!cancelled) setError(e.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) setSettledRequest(requestKey); });
     return () => { cancelled = true; };
-  }, [status, page, reloadKey]);
+  }, [status, page, requestKey]);
 
   async function openDetail(code) {
     setDetailError('');

@@ -1,6 +1,7 @@
 package com.example.backend.security;
 
 import java.text.Normalizer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -14,7 +15,7 @@ import java.util.Set;
 public final class PasswordPolicy {
 
     public static final int MIN_LENGTH = 12;
-    public static final int MAX_LENGTH = 72; // BCrypt chỉ xử lý tối đa 72 byte
+    public static final int MAX_UTF8_BYTES = 72; // BCrypt chỉ xử lý tối đa 72 byte
 
     private static final Set<String> COMMON = new HashSet<>(Arrays.asList(
             "123456789012", "1234567890123", "12345678901234", "123456789abc", "abcdefghijkl", "abc123456789",
@@ -35,8 +36,8 @@ public final class PasswordPolicy {
         if (password == null || password.length() < MIN_LENGTH) {
             return Optional.of("Mật khẩu cần ít nhất " + MIN_LENGTH + " ký tự");
         }
-        if (password.length() > MAX_LENGTH) {
-            return Optional.of("Mật khẩu tối đa " + MAX_LENGTH + " ký tự");
+        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_UTF8_BYTES) {
+            return Optional.of("Mật khẩu tối đa " + MAX_UTF8_BYTES + " byte UTF-8");
         }
 
         String lower = password.toLowerCase(Locale.ROOT);

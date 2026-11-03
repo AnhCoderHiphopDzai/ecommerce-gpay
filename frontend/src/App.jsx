@@ -3,7 +3,8 @@ import Home from './pages/Home.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import UserBar from './components/UserBar.jsx';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { useAuth } from './context/auth-context.js';
 import './styles/auth.css';
 
 // Chưa đăng nhập -> trang đăng nhập/đăng ký. Đã đăng nhập -> trang chính như cũ.

@@ -42,6 +42,9 @@ public class PaymentController {
     @Value("classpath:gpay_public.pem")
     private org.springframework.core.io.Resource gpayPublicKeyResource;
 
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
     @GetMapping("/get-url")
     public ResponseEntity<?> getPaymentUrl(@RequestParam String invoiceCode,
                                            // 👉 BỔ SUNG (Auth): giữ tham số này để frontend cũ không lỗi nhưng KHÔNG dùng nữa.
@@ -66,7 +69,8 @@ public class PaymentController {
         log.info("====== NHẬN THÔNG BÁO WEBHOOK TỪ G-PAY ======");
         try {
             String rawJsonBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
-            log.info("Raw Body nhận được: {}", rawJsonBody);
+            // Không log raw payload: nó có thể chứa chữ ký, số tài khoản hoặc dữ liệu thanh toán.
+            log.info("Đã nhận webhook G-Pay ({} bytes)", rawJsonBody.length());
 
             JsonParser springParser = JsonParserFactory.getJsonParser();
             Map<String, Object> payload = springParser.parseMap(rawJsonBody);
@@ -113,7 +117,7 @@ public class PaymentController {
 
                 int amount = amountStr.equals("null") ? 0 : Integer.parseInt(amountStr);
                 invoiceService.handleVAPaymentSuccess(accountNumber, gpayTransId, new BigDecimal(amount));
-                log.info("Xử lý nạp tiền VA thành công cho tài khoản: {}", accountNumber);
+                log.info("Đã chấp nhận webhook VA transactionId={}", gpayTransId);
                 return ResponseEntity.ok("Success");
             }
 
@@ -204,6 +208,6 @@ public class PaymentController {
 
     @GetMapping("/callback")
     public RedirectView gpayCallback() {
-        return new RedirectView("http://localhost:5173/");
+        return new RedirectView(frontendUrl);
     }
 }

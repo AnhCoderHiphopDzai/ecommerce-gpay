@@ -24,7 +24,7 @@ public class RegisterRequest {
 
     // BCrypt chỉ xử lý tối đa 72 byte nên giới hạn 72 ký tự
     @NotBlank(message = "Vui lòng nhập mật khẩu")
-    @Size(min = 8, max = 72, message = "Mật khẩu phải từ 8 đến 72 ký tự")
+    @Size(min = 12, max = 72, message = "Mật khẩu phải từ 12 đến 72 ký tự")
     private String password;
 
     // Cố ý KHÔNG có trường "role": client không được tự chọn quyền

@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import com.example.backend.service.SessionService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,10 +33,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final SessionService sessionService;
 
-    public JwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService,
+                         SessionService sessionService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.sessionService = sessionService;
     }
 
     @Override
@@ -49,10 +53,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             String token = header.substring(BEARER_PREFIX.length()).trim();
             try {
-                String email = jwtService.extractEmail(token);
+                JwtService.SessionIdentity identity = jwtService.extractIdentity(token);
+
+                // Mỗi access token thuộc về một phiên cụ thể. Thu hồi phiên có hiệu lực ngay,
+                // thay vì phải chờ JWT hết hạn.
+                if (!sessionService.isActive(identity.sessionId())) {
+                    chain.doFilter(request, response);
+                    return;
+                }
 
                 // Luôn đọc lại tài khoản từ DB: khóa/xóa tài khoản có hiệu lực ngay, không chờ token hết hạn
-                UserDetails user = userDetailsService.loadUserByUsername(email);
+                UserDetails user = userDetailsService.loadUserByUsername(identity.email());
 
                 if (user.isEnabled()) {
                     UsernamePasswordAuthenticationToken authentication =

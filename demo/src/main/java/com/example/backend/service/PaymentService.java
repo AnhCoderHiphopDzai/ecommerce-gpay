@@ -3,6 +3,8 @@ package com.example.backend.service;
 import com.example.backend.utils.GpaySecurityUtil;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -15,6 +17,9 @@ import java.util.UUID;
 
 @Service
 public class PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     @Value("${gpay.client-id}")
     private String clientId;
 
@@ -89,13 +94,8 @@ public class PaymentService {
                 + "\"webhook_url\":\"" + escapeJson(webhookUrl) + "\""
                 + "}";
 
-        System.out.println("==========================================");
-        System.out.println("           GPAY INIT ORDER REQUEST");
-        System.out.println("==========================================");
-        System.out.println("URL         = " + url);
-        System.out.println("Request ID  = " + requestId);
-        System.out.println("Timestamp   = " + timestamp);
-        System.out.println("Body        = " + jsonBody);
+        // Không log JSON body: có thể chứa tên khách hàng, mã hóa đơn và URL callback nội bộ.
+        log.info("G-Pay init-order requestId={} invoiceCode={}", requestId, invoiceCode);
 
         String signature = securityUtil.generateSignature(
                 timestamp,
@@ -104,7 +104,7 @@ public class PaymentService {
                 privateKey
         );
 
-        System.out.println("Signature generated = YES");
+        log.debug("Đã tạo chữ ký G-Pay cho requestId={}", requestId);
 
         try {
             byte[] rawBodyBytes = jsonBody.getBytes(StandardCharsets.UTF_8);
@@ -120,11 +120,6 @@ public class PaymentService {
                     .body(rawBodyBytes) // ĐÂY LÀ ĐIỂM QUAN TRỌNG NHẤT
                     .retrieve()
                     .body(Map.class);
-
-            System.out.println("==========================================");
-            System.out.println("             GPAY RESPONSE");
-            System.out.println("==========================================");
-            System.out.println(response);
 
             if (response == null) {
                 throw new IllegalStateException("G-Pay trả về response null");
@@ -144,18 +139,13 @@ public class PaymentService {
             }
 
             String billUrl = (String) billUrlObject;
-            System.out.println("Bill URL = " + billUrl);
+            log.info("G-Pay init-order thành công requestId={}", requestId);
 
             return billUrl;
 
 
         } catch (Exception e) {
-            System.err.println("==========================================");
-            System.err.println("          GPAY REQUEST FAILED");
-            System.err.println("==========================================");
-            System.err.println("URL        = " + url);
-            System.err.println("Request ID = " + requestId);
-            System.err.println("Error      = " + e.getMessage());
+            log.warn("G-Pay init-order thất bại requestId={}: {}", requestId, e.getMessage());
             throw e;
         }
     }
@@ -168,7 +158,7 @@ public class PaymentService {
             return dynamicAccessToken;
         }
 
-        System.out.println("===== GPAY FETCHING NEW ACCESS TOKEN =====");
+        log.info("Đang lấy access token G-Pay mới");
 
         // 1. Đường dẫn chuẩn theo code mẫu
         String authUrl = baseUrl + "/auth/token";
@@ -207,16 +197,14 @@ public class PaymentService {
             }
             this.tokenExpiryTime = System.currentTimeMillis() + (expiresIn * 1000L);
 
-            System.out.println("Đã lấy được token tự động thành công!");
+            log.info("Đã lấy access token G-Pay thành công");
             return this.dynamicAccessToken;
 
         } catch (RestClientResponseException ex) {
-            System.err.println("=== LỖI TỪ G-PAY KHI LẤY TOKEN ===");
-            System.err.println("HTTP Status: " + ex.getStatusCode());
-            System.err.println("Response Body: " + ex.getResponseBodyAsString());
-            throw new RuntimeException("Lỗi từ G-Pay: " + ex.getResponseBodyAsString(), ex);
+            log.warn("G-Pay từ chối yêu cầu access token, HTTP {}", ex.getStatusCode());
+            throw new RuntimeException("G-Pay từ chối yêu cầu access token", ex);
         } catch (Exception e) {
-            System.err.println("Lỗi Exception gọi API lấy Token: " + e.getMessage());
+            log.warn("Không thể lấy access token G-Pay: {}", e.getMessage());
             throw new RuntimeException("Không thể lấy Gpay Access Token tự động", e);
         }
     }
@@ -241,8 +229,7 @@ public class PaymentService {
                 + "\"map_type\":\"" + mapType + "\""
                 + "}";
 
-        System.out.println("===== GPAY CREATE VIRTUAL ACCOUNT =====");
-        System.out.println("Body: " + jsonBody);
+        log.info("Tạo virtual account G-Pay requestId={} invoiceCode={}", requestId, invoiceCode);
 
         String signature = securityUtil.generateSignature(timestamp, requestId, jsonBody, privateKey);
 
@@ -268,7 +255,7 @@ public class PaymentService {
             return (Map<String, Object>) response.get("data");
 
         } catch (Exception e) {
-            System.err.println("Lỗi gọi API tạo VA: " + e.getMessage());
+            log.warn("Tạo virtual account G-Pay thất bại requestId={}: {}", requestId, e.getMessage());
             throw e;
         }
     }

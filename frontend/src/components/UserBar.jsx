@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../context/auth-context.js';
 import '../styles/auth.css';
 
 // view: 'shop' | 'admin'. Nút chuyển sang trang quản trị chỉ hiện với ADMIN (chỉ là tiện lợi cho giao diện:

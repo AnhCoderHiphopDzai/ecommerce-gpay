@@ -8,8 +8,11 @@ import com.example.backend.dto.UserResponse;
 import com.example.backend.model.Role;
 import com.example.backend.model.User;
 import com.example.backend.security.AppUserDetails;
+import com.example.backend.security.ClientInfo;
+import com.example.backend.security.FieldValidationException;
 import com.example.backend.security.CustomUserDetailsService;
 import com.example.backend.security.JwtService;
+import com.example.backend.security.PasswordPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -20,6 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -28,9 +33,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final SessionService sessionService;
 
-    public AuthResponse register(RegisterRequest request) {
+    public record AuthenticatedSession(AuthResponse response, String refreshToken, Duration refreshTtl) {
+    }
+
+    public AuthenticatedSession register(RegisterRequest request, ClientInfo client) {
         String email = CustomUserDetailsService.normalizeEmail(request.getEmail());
+
+        PasswordPolicy.violation(request.getPassword(), email, request.getFullName())
+                .ifPresent(message -> {
+                    throw new FieldValidationException("password", message);
+                });
 
         if (userRepository.existsByEmail(email)) {
             throw emailTaken();
@@ -51,22 +65,37 @@ public class AuthService {
         }
 
         // Đăng ký xong đăng nhập luôn, frontend không phải gọi login lần nữa
-        return buildAuthResponse(AppUserDetails.from(user));
+        return buildAuthenticatedSession(AppUserDetails.from(user), client);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthenticatedSession login(LoginRequest request, ClientInfo client) {
         // Sai email hoặc sai mật khẩu đều ném BadCredentialsException (cùng một thông báo, không lộ email nào tồn tại)
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         CustomUserDetailsService.normalizeEmail(request.getEmail()),
                         request.getPassword()));
 
-        return buildAuthResponse((AppUserDetails) authentication.getPrincipal());
+        return buildAuthenticatedSession((AppUserDetails) authentication.getPrincipal(), client);
     }
 
-    private AuthResponse buildAuthResponse(AppUserDetails principal) {
-        String token = jwtService.generateToken(principal.getEmail());
-        return new AuthResponse(token, "Bearer", jwtService.getExpiresInSeconds(), UserResponse.from(principal));
+    public AuthenticatedSession refresh(String rawRefreshToken, ClientInfo client) {
+        SessionService.Rotation rotation = sessionService.rotate(rawRefreshToken, client);
+        if (rotation.status() != SessionService.Status.OK) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không còn hợp lệ");
+        }
+
+        String accessToken = jwtService.generateToken(rotation.user().getEmail(), rotation.sessionId());
+        AuthResponse response = new AuthResponse(accessToken, "Bearer", jwtService.getExpiresInSeconds(),
+                UserResponse.from(rotation.user()));
+        return new AuthenticatedSession(response, rotation.refreshToken(), rotation.refreshTtl());
+    }
+
+    private AuthenticatedSession buildAuthenticatedSession(AppUserDetails principal, ClientInfo client) {
+        SessionService.NewSession session = sessionService.createSession(principal.getId(), client);
+        String token = jwtService.generateToken(principal.getEmail(), session.sessionId());
+        AuthResponse response = new AuthResponse(token, "Bearer", jwtService.getExpiresInSeconds(),
+                UserResponse.from(principal));
+        return new AuthenticatedSession(response, session.refreshToken(), session.refreshTtl());
     }
 
     private ResponseStatusException emailTaken() {
