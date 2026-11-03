@@ -30,18 +30,21 @@ pipeline {
         HAS_STABLE_RELEASE = 'false'
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-                script {
-                    env.GIT_SHA = sh(script: 'git rev-parse --verify HEAD', returnStdout: true).trim()
-                    env.IMAGE_TAG = "build-${env.BUILD_NUMBER}-${env.GIT_SHA.take(12)}"
-                    env.BACKEND_IMAGE = "${env.BACKEND_REPOSITORY}:${env.IMAGE_TAG}"
-                    env.FRONTEND_IMAGE = "${env.FRONTEND_REPOSITORY}:${env.IMAGE_TAG}"
-                }
+    stage('Checkout') {
+        steps {
+            checkout scm
+            sh '''
+                set -eu
+                rm -rf demo/target frontend/test-results
+            '''
+            script {
+                env.GIT_SHA = sh(script: 'git rev-parse --verify HEAD', returnStdout: true).trim()
+                env.IMAGE_TAG = "build-${env.BUILD_NUMBER}-${env.GIT_SHA.take(12)}"
+                env.BACKEND_IMAGE = "${env.BACKEND_REPOSITORY}:${env.IMAGE_TAG}"
+                env.FRONTEND_IMAGE = "${env.FRONTEND_REPOSITORY}:${env.IMAGE_TAG}"
             }
         }
+    }
 
         stage('Validate configuration') {
             steps {
