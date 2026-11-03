@@ -2,3 +2,8 @@
 .idea/
 *.p12
 node_modules/
+
+# Local environment secrets
+.env
+.env.*
+!.env.example

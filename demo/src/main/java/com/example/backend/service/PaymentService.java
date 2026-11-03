@@ -30,9 +30,6 @@ public class PaymentService {
     @Value("${gpay.merchant-id}")
     private String merchantId;
 
-    @Value("${gpay.access-token}")
-    private String accessToken;
-
     @Value("${gpay.certificate}")
     private String certificate;
 
