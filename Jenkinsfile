@@ -29,7 +29,7 @@ pipeline {
         POST_DEPLOY_SMOKE_FAILED = 'false'
         HAS_STABLE_RELEASE = 'false'
     }
-
+    stages {
     stage('Checkout') {
         steps {
             checkout scm
