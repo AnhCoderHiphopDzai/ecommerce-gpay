@@ -71,3 +71,10 @@
 - Remote deploy backup trước khi đổi app; current chỉ cập nhật sau public HTTPS smoke; rollback cần input.
 - Đừng rollback schema tự động. Giữ image/release cũ và thử migration tương thích với image baseline.
 - G-Pay production mặc định tắt; kiểm thử/đối soát và điền cấu hình trước khi bật.
+
+## Maven dependency downloads
+- Unit/integration dùng cache bind-mount `.cache/maven` riêng workspace; tạo bằng UID Jenkins trước khi chạy Docker.
+- Cache không nằm trong volume CI bị xóa hoặc artifact; không xóa cache Maven toàn host để sửa một dependency lỗi.
+- `maven-with-download-retry.sh` chỉ thử lại một lần khi Maven báo transfer artifact bị cắt response body; `-U` kiểm tra tải lại.
+- Lỗi assertion/compile/checksum/artifact không tồn tại hoặc interrupt phải giữ exit code và không retry.
+- Chạy `sh ci/test-maven-download-retry.sh` khi sửa helper; giữ test không phụ thuộc mạng/DB.

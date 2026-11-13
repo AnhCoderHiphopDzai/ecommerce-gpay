@@ -100,6 +100,7 @@ export CI_PROJECT="demo1-ci-manual-$(date +%s)"
 export CI_DB_PASSWORD=ci-test-only-password
 export CI_JWT_SECRET=ci-test-jwt-secret-not-for-deployment-1234567890
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+mkdir -p .cache/maven
 (
   set -eu
   cleanup() {

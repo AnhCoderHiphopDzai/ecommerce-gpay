@@ -19,3 +19,6 @@ release.env
 *.sql.gz
 .registry-auth.*/
 /ci/production-release.env
+
+# Workspace-local dependency cache shared by sequential CI Maven containers
+/.cache/

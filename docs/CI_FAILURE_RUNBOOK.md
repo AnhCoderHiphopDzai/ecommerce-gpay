@@ -75,3 +75,25 @@ Việc cập nhật/đọc cờ baseline đã hoạt động đúng trên Jenkin
 Deploy được phê duyệt; post-deploy smoke đạt; hai image `build-17-3e453cab3fb4` được gắn `stable`.
 Hook kết thúc cũng thu thập chẩn đoán CI và chạy dọn project `demo1-ci-17`.
 Các stage rollback bị bỏ qua đúng vì smoke đạt. Nhánh cập nhật cờ smoke lỗi và rollback thực tế chưa được kiểm thử.
+
+
+## Build #18: Maven tải JAR Hibernate bị ngắt
+
+Ngày 2026-11-13, stage integration dừng lúc 15:51 khi tải
+`org.hibernate.orm:hibernate-core:7.4.13.Final`: server khai báo 15.334.914 bytes nhưng chỉ nhận 4.358.099 bytes.
+Thông báo `Premature end of Content-Length delimited message body` thể hiện stream tải bị cắt; log này chưa phải lỗi assertion/Java.
+Build dừng trước build candidate/deploy; cleanup MySQL/Redis CI sau lỗi là hành vi đúng.
+Có thể chạy lại một lần khi gặp đúng lỗi tải tạm thời này; nếu tiếp tục lỗi, kiểm tra kết nối Internet/proxy của Ubuntu VM.
+
+Bản sửa giữ cache Maven giữa unit/integration và giữa các build tại `.cache/maven` trong workspace Jenkins,
+mount vào `/maven-repository` cho user runner. Checkout tạo thư mục cache; các lần cleanup Compose chỉ xóa dữ liệu CI.
+Không đặt cache vào `/tmp` của container tạm vì mỗi invocation sẽ phải tải lại toàn bộ.
+Helper `ci/maven-with-download-retry.sh` stream log qua tee, giữ exit code Maven và chỉ thử thêm một lần sau 5 giây
+nếu exit code là 1 và dòng lỗi chỉ rõ artifact transfer bị cắt Content-Length; lần thử lại dùng `-U` để kiểm tra lại resolution.
+Lỗi test/compile/checksum, thiếu artifact hoặc interrupt không được tự thử lại. Lần thử thứ hai vẫn lỗi thì build dừng.
+
+Maven 3.9 mặc định dùng native HTTP Resolver; cấu hình retry Wagon đơn thuần không giải quyết được tình huống này.
+Xem [Maven Resolver transport](https://maven.apache.org/guides/mini/guide-resolver-transport.html) và
+[giới hạn retry response body của Wagon](https://maven.apache.org/wagon/wagon-providers/wagon-http/).
+Không đổi Hibernate/Spring Boot, mirror hay tắt kiểm tra TLS để né lỗi tải.
+Cache này chỉ dành cho Maven test container; bước build Docker image vẫn có môi trường Maven riêng.

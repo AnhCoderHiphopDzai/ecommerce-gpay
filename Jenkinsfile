@@ -52,6 +52,7 @@ pipeline {
             sh '''
                 set -eu
                 rm -rf demo/target frontend/test-results frontend/coverage artifacts
+                mkdir -p .cache/maven
             '''
             script {
                 env.PUBLIC_ORIGIN = params.DEPLOY_TARGET == 'production' ? "https://${params.PROD_DOMAIN}" : "http://${params.DEPLOY_HOST}:${env.BACKEND_PORT}"
@@ -91,6 +92,7 @@ pipeline {
         stage('Validate configuration') {
             steps {
                 sh 'sh ci/test-production.sh'
+                sh 'sh ci/test-maven-download-retry.sh'
                 sh '''
                     set -eu
                     SPRING_DATASOURCE_PASSWORD="$CI_DB_PASSWORD" \
