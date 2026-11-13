@@ -13,7 +13,8 @@
 - `frontend/`: React 19, Vite 8, Axios, SockJS/STOMP, Vitest và oxlint.
 - `compose.yaml`: MySQL 8.4, Redis 7, backend và frontend của bản triển khai.
 - `compose.ci.yaml`: dịch vụ test và candidate độc lập, không publish cổng ra host.
-- `Jenkinsfile`: pipeline Linux, build/test bằng Docker trên Ubuntu VM.
+- `Jenkinsfile`: pipeline Linux, build/test trên Ubuntu VM; chọn deploy VMware hoặc production VPS.
+- `compose.production.yaml`, `deploy/production/`, `docs/PRODUCTION.md`: HTTPS, SSH deploy, secrets, backup/restore.
 - `ci/`: kiểm tra môi trường runner, smoke test và thu thập log.
 - `docs/CI_TEST_STRATEGY.md`: ma trận test và cổng chất lượng.
 - `docs/CI_FAILURE_RUNBOOK.md`: chẩn đoán build/deploy lỗi và rollback.

@@ -22,7 +22,7 @@ docker version --format 'Docker server: {{.Server.Version}}'
   exit 1
 }
 
-for script in ci/*.sh; do
+for script in ci/*.sh deploy/production/*.sh; do
   sh -n "$script"
 done
 

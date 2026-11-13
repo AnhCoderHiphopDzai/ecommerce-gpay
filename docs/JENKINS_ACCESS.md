@@ -89,7 +89,7 @@ Log người dùng cung cấp xác nhận job `demo1-ci-cd`, build #15 SUCCESS t
 Candidate smoke, deploy, post-deploy smoke và gắn hai image stable hoàn tất lúc 10:15 ngày 2026-11-13.
 Kiểm tra HTTP từ Windows sau đó xác nhận frontend 200, backend health UP và anonymous `/api/auth/me` 401.
 Chạy lại `ci/smoke-deployed.sh` từ Windows qua Git Bash với URL VM cũng đạt, gồm products API và CORS.
-Branch của job chưa được xác minh; các thay đổi working tree mới chưa nằm trong build #15.
+Log mới xác nhận build #17 SUCCESS trên commit `3e453cab3fb4`, deploy/smoke đạt và gắn stable lúc 14:22 ngày 2026-11-13. Baseline rollback đã nhận diện đúng stable; bước dọn CI cuối pipeline cũng chạy. Branch của job chưa được xác minh. Nhánh smoke thất bại và thực thi rollback chưa được kiểm chứng bởi build thành công này.
 
 ## Chạy riêng integration test trên Ubuntu
 

@@ -72,6 +72,21 @@ class PaymentControllerTest {
         assertEquals("https://shop.example.test", redirect.getUrl());
     }
 
+    @Test
+    void disabledPaymentsCannotCreateTransactionsOrSettleWebhooks() {
+        InvoiceService invoices = mock(InvoiceService.class);
+        GpaySecurityUtil verifier = mock(GpaySecurityUtil.class);
+        PaymentService payments = mock(PaymentService.class);
+        PaymentController controller = controller(invoices, verifier);
+        ReflectionTestUtils.setField(controller, "paymentService", payments);
+        ReflectionTestUtils.setField(controller, "paymentsEnabled", false);
+
+        assertEquals(503, controller.getPaymentUrl("ORDER-1", null, null).getStatusCode().value());
+        assertEquals(503, controller.getVirtualAccount("ORDER-1", null).getStatusCode().value());
+        assertEquals(503, controller.gpayWebhookAllInOne(jsonRequest("{}")).getStatusCode().value());
+        org.mockito.Mockito.verifyNoInteractions(invoices, verifier, payments);
+    }
+
     private static PaymentController controller(InvoiceService invoiceService, GpaySecurityUtil securityUtil) {
         PaymentController controller = new PaymentController();
         ReflectionTestUtils.setField(controller, "paymentService", mock(PaymentService.class));

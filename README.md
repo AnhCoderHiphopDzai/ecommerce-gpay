@@ -55,3 +55,9 @@ Pipeline kiểm tra runner, lint/test/build, integration/API và candidate smoke
 Sau deploy có smoke test và bước duyệt rollback khi cần; chỉ release đạt kiểm tra mới được gắn tag `stable`.
 Parameter `DEPLOY_HOST` đổi URL API/CORS khi VM đổi IP; Docker daemon của Jenkins agent thực hiện deploy.
 Không xóa volume production khi dọn môi trường test. Không đưa secret vào biến `VITE_*` hoặc commit `.env`.
+
+## Chuẩn bị production VPS
+
+Xem [PRODUCTION.md](docs/PRODUCTION.md) để dùng hostname sslip.io miễn phí, cấu hình VPS/Docker/SSH,
+GHCR, HTTPS tự động, backup/restore và chạy Jenkins với `DEPLOY_TARGET=production`.
+Mặc định pipeline vẫn deploy VMware. Production dùng Compose độc lập, profile prod/Flyway và G-Pay tắt cho đến khi được cấu hình.

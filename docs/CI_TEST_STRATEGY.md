@@ -11,7 +11,7 @@ Mỗi thay đổi phải đi qua các cổng bên dưới theo thứ tự trong 
 | Frontend quality | Node container tạm | `npm ci`, oxlint, Vitest, coverage, Vite build | Dừng trước khi build image |
 | Backend unit | JVM/Maven container tạm | JWT, password policy, refresh-token policy, rate limit, G-Pay RSA, webhook | Dừng trước khi khởi động database |
 | Backend integration/API | MySQL + Redis Compose tạm | đăng ký/đăng nhập/refresh/logout, CORS, quyền USER/ADMIN, CRUD sản phẩm, giỏ hàng, quyền sở hữu hóa đơn, chống overselling | Xóa volume tạm, lưu log/JUnit |
-| Candidate smoke | Toàn bộ Compose tạm | actuator health, frontend, API công khai, API cần đăng nhập, CORS | Không hiện nút deploy |
+| Candidate smoke | Compose tạm, profile prod/Flyway và MySQL app_ci | actuator health, frontend, API công khai, API cần đăng nhập, CORS | Không hiện nút deploy |
 | Post-deploy smoke | Container vừa triển khai | Các kiểm tra HTTP giống candidate ở cổng thật của VM | Đánh dấu lỗi và yêu cầu xác nhận rollback |
 
 ## Các test hiện có
@@ -65,3 +65,9 @@ Xem [CI_FAILURE_RUNBOOK.md](CI_FAILURE_RUNBOOK.md) khi một cổng thất bại
 
 Xem [JENKINS_ACCESS.md](JENKINS_ACCESS.md) để SSH từ PowerShell, truy cập Jenkins và chạy integration test riêng trên Ubuntu.
 CI yêu cầu Maven báo lỗi nếu không tìm thấy test theo tag; không chấp nhận một cổng test rỗng.
+
+## Chuẩn bị production
+
+Validate configuration kiểm tra thêm Compose production, Caddy và `ci/test-production.sh` với Docker/HTTP mock.
+Candidate khởi động profile prod, chạy migration rồi Hibernate validate trên MySQL trống; webhook thanh toán phải trả 503 khi tắt.
+Luồng VPS/registry/SSH/HTTPS thật chỉ chạy khi chọn DEPLOY_TARGET=production; xem [PRODUCTION.md](PRODUCTION.md).

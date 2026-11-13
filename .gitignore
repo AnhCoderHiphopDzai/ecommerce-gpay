@@ -12,3 +12,10 @@ artifacts/
 .env
 .env.*
 !.env.example
+
+# Production credentials, runtime state and backups
+production.env
+release.env
+*.sql.gz
+.registry-auth.*/
+/ci/production-release.env

@@ -42,9 +42,9 @@ npm run build
 
 ## Cấu hình build / triển khai
 - `VITE_API_BASE_URL` được nhúng lúc build; mặc định local là `https://localhost:8081`.
-- Jenkins truyền `http://<DEPLOY_HOST>:<BACKEND_PORT>` qua Docker build arg.
+- Nhánh VM truyền `http://<DEPLOY_HOST>:<BACKEND_PORT>`; production truyền `https://<PROD_DOMAIN>`.
 - Đổi IP VM/API sau build đòi hỏi build lại frontend; đổi env container Nginx không đủ.
 - Docker dùng Node 22 build, Nginx phục vụ `dist/` tại cổng 80; Compose publish cổng 8088 mặc định.
-- `nginx.conf` có SPA fallback; hiện browser gọi backend trực tiếp, không qua proxy `/api` Nginx.
+- `nginx.conf` có SPA fallback; production Caddy chuyển `/api/*` và `/ws/*` sang backend cùng HTTPS origin.
 - Không đặt secret trong biến `VITE_*` vì chúng có thể xuất hiện trong bundle trình duyệt.
 - Không sửa/commit file sinh trong `dist/`, `coverage/`, `test-results/`, `node_modules/`.

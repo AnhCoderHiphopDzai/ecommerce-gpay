@@ -52,5 +52,9 @@ cd demo
 - Runtime cần MySQL, Redis, JWT secret và cấu hình G-Pay từ môi trường.
 - SSL mặc định bật nhưng keystore không có trong Git; local cần tự cấp keystore hoặc tắt SSL rõ ràng.
 - Compose tắt SSL cho HTTP nội bộ VM; CORS/frontend URL phải khớp địa chỉ frontend.
-- Hibernate production hiện dùng `ddl-auto=update`; rollback image không phục hồi schema/dữ liệu.
+- Profile prod: Flyway tạo schema mới, Hibernate validate; profile VM/default vẫn update và Flyway tắt.
+- Không sửa migration đã áp dụng; thêm phiên bản mới. Không tự baseline database cũ.
+- Profile prod mặc định tắt payments; unit test phải bảo đảm không gọi G-Pay/cập nhật hóa đơn khi tắt.
+- Public key webhook có thể cấp qua gpay.public-key-location; production đọc file ngoài image.
+- Rollback image không phục hồi schema/dữ liệu; xem `../docs/PRODUCTION.md`.
 - `application-test.properties` là test resource, không được đóng gói trong image runtime.

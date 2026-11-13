@@ -6,7 +6,8 @@
 - Agent Jenkins phải chạy Linux trên Ubuntu VM, có Docker Engine/Compose v2 và curl.
 - Pipeline chạy Docker CLI trực tiếp; không dùng Jenkins `docker.image(...).inside`.
 - Jenkins workspace bind-mount phải tồn tại tại cùng đường dẫn đối với Docker daemon.
-- Build và deploy dùng cùng daemon trên VM; `DEPLOY_HOST` là địa chỉ browser truy cập, không phải đích SSH.
+- Nhánh `DEPLOY_TARGET=vm` build/deploy trên cùng daemon; `DEPLOY_HOST` là địa chỉ browser truy cập.
+- Nhánh `production` push GHCR rồi deploy VPS qua SSH; đọc `../docs/PRODUCTION.md`.
 - Nếu Jenkins ở container, `127.0.0.1` và workspace mount cần cấu hình riêng; không giả định pipeline chạy được ngay.
 
 ## Địa chỉ và truy cập
@@ -16,8 +17,8 @@
 - Windows VMnet8 là `192.168.179.1`; IP guest có thể thay đổi theo DHCP VMware.
 - Không ghi mật khẩu/token vào repository; SSH và Jenkins có tài khoản đăng nhập riêng.
 - Quy trình kết nối lại, tunnel và kiểm tra dịch vụ nằm trong `../docs/JENKINS_ACCESS.md`.
-- Job đã xác nhận từ log người dùng: `demo1-ci-cd`, build #15 SUCCESS, commit `e122cf51a289`.
-- Build #15 deploy và smoke đạt; bản sửa cờ rollback trong working tree chưa được chạy trên Jenkins.
+- Job đã xác nhận từ log người dùng: `demo1-ci-cd`, build #17 SUCCESS, commit `3e453cab3fb4`.
+- Build #17 nhận diện stable đúng, deploy/smoke đạt và gắn stable; nhánh smoke lỗi/rollback chưa được thực thi.
 
 ## Trình tự pipeline phải giữ
 1. Checkout và xóa báo cáo sinh từ build cũ.
@@ -58,3 +59,15 @@
 - Báo rõ khác biệt giữa kiểm tra local, linter Jenkins và một build thực sự thành công trên VM.
 - Khởi tạo cờ release thay đổi lúc chạy trong `script`, không khai báo trong Declarative `environment`.
 - Giữ nhánh rollback và điều kiện gắn stable đọc cùng trạng thái `POST_DEPLOY_SMOKE_FAILED`.
+
+## Production VPS
+- `compose.production.yaml` là file độc lập, không merge với Compose VM có publish cổng dev.
+- Credentials thêm: PROD_REGISTRY (username/password), PROD_SSH_KEY (SSH private key), PROD_SSH_KNOWN_HOSTS (secret file).
+- Secret ứng dụng ở `/opt/ecommerce-gpay/shared/production.env` trên VPS; không upload/ archive từ Jenkins.
+- Caddy chỉ publish 80/443; HTTPS chung origin cho web/API/SockJS, refresh cookie Secure.
+- Candidate dùng profile prod/Flyway trên schema CI trống, user app_ci; không thay schema VM.
+- Chạy `sh ci/test-production.sh` để kiểm tra nhánh lỗi, promotion/rollback và restore bằng mock.
+- Test symlink promotion/rollback cần Linux; Windows chỉ kiểm tra các nhánh không cần symlink.
+- Remote deploy backup trước khi đổi app; current chỉ cập nhật sau public HTTPS smoke; rollback cần input.
+- Đừng rollback schema tự động. Giữ image/release cũ và thử migration tương thích với image baseline.
+- G-Pay production mặc định tắt; kiểm thử/đối soát và điền cấu hình trước khi bật.

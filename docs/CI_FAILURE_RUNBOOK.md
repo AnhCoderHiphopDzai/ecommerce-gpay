@@ -65,6 +65,13 @@ Bản sửa khởi tạo hai cờ trong `script` đầu Checkout, rồi cập nh
 Đối chiếu cơ chế scope trong [ModelInterpreter của Jenkins](https://github.com/jenkinsci/pipeline-model-definition-plugin/blob/master/pipeline-model-definition/src/main/resources/org/jenkinsci/plugins/pipeline/modeldefinition/ModelInterpreter.groovy)
 và [EnvActionImpl](https://github.com/jenkinsci/workflow-cps-plugin/blob/master/plugin/src/main/java/org/jenkinsci/plugins/workflow/cps/EnvActionImpl.java).
 
-Sau khi đưa bản sửa lên branch của job, chạy một build mới và kiểm tra baseline hiện có stable.
+Build #17 đã xác nhận pipeline nhận diện stable đúng sau bản sửa.
 Không cố tình làm hỏng smoke ở môi trường đang triển khai để thử rollback; kiểm chứng nhánh lỗi trên môi trường thử riêng.
-Build #15 chưa kiểm chứng bản sửa cờ trạng thái hoặc các cải tiến runner mới trong working tree.
+### Xác nhận lại với build #17
+
+Log người dùng cung cấp ngày 2026-11-13 xác nhận build #17, commit `3e453cab3fb4`, SUCCESS lúc 14:22.
+Sau `printf true`, pipeline đã báo `A stable release is available for a manually approved rollback.`
+Việc cập nhật/đọc cờ baseline đã hoạt động đúng trên Jenkins.
+Deploy được phê duyệt; post-deploy smoke đạt; hai image `build-17-3e453cab3fb4` được gắn `stable`.
+Hook kết thúc cũng thu thập chẩn đoán CI và chạy dọn project `demo1-ci-17`.
+Các stage rollback bị bỏ qua đúng vì smoke đạt. Nhánh cập nhật cờ smoke lỗi và rollback thực tế chưa được kiểm thử.

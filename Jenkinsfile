@@ -16,6 +16,11 @@ pipeline {
     }
 
     parameters {
+        choice(name: 'DEPLOY_TARGET', choices: ['vm', 'production'], description: 'vm keeps the existing VMware deployment. production publishes images and deploys to the VPS over SSH.')
+        string(name: 'PROD_DOMAIN', defaultValue: '', trim: true, description: 'Public DNS hostname, e.g. shop-203-0-113-10.sslip.io; no scheme or path.')
+        string(name: 'PROD_SSH_HOST', defaultValue: '', trim: true, description: 'VPS IP/DNS, SSH port 22.')
+        string(name: 'PROD_SSH_USER', defaultValue: 'deploy', trim: true, description: 'VPS account with access to Docker and /opt/ecommerce-gpay.')
+        string(name: 'REGISTRY_PREFIX', defaultValue: 'ghcr.io/anhcoderhiphopdzai/ecommerce-gpay', trim: true, description: 'Lowercase GHCR image prefix; suffixes -backend and -frontend are added.')
         string(name: 'DEPLOY_HOST', defaultValue: '192.168.179.129', trim: true,
                description: 'Ubuntu VM IPv4 address or DNS hostname, without http:// or a port. Images deploy on the local Docker daemon.')
     }
@@ -40,6 +45,8 @@ pipeline {
                 // would mask later env assignments and suppress the rollback path.
                 env.POST_DEPLOY_SMOKE_FAILED = 'false'
                 env.HAS_STABLE_RELEASE = 'false'
+                env.PROD_DEPLOY_FAILED = 'false'
+                env.PROD_HAS_BASELINE = 'false'
             }
             checkout scm
             sh '''
@@ -47,6 +54,7 @@ pipeline {
                 rm -rf demo/target frontend/test-results frontend/coverage artifacts
             '''
             script {
+                env.PUBLIC_ORIGIN = params.DEPLOY_TARGET == 'production' ? "https://${params.PROD_DOMAIN}" : "http://${params.DEPLOY_HOST}:${env.BACKEND_PORT}"
                 env.GIT_SHA = sh(script: 'git rev-parse --verify HEAD', returnStdout: true).trim()
                 env.IMAGE_TAG = "build-${env.BUILD_NUMBER}-${env.GIT_SHA.take(12)}"
                 env.BACKEND_IMAGE = "${env.BACKEND_REPOSITORY}:${env.IMAGE_TAG}"
@@ -63,11 +71,26 @@ pipeline {
                     }
                 }
                 sh 'sh ci/preflight.sh'
+                script {
+                    if (params.DEPLOY_TARGET == 'production') {
+                        if (!(params.PROD_DOMAIN ==~ /([a-zA-Z0-9][a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}/) || params.PROD_DOMAIN.contains('CHANGE_ME')) {
+                            error 'Set PROD_DOMAIN to the public hostname that resolves to your VPS.'
+                        }
+                        if (!(params.PROD_SSH_HOST ==~ /[a-zA-Z0-9][a-zA-Z0-9.-]*/) || !(params.PROD_SSH_USER ==~ /[a-z_][a-z0-9_-]*/)) {
+                            error 'Set valid PROD_SSH_HOST and PROD_SSH_USER.'
+                        }
+                        if (!(params.REGISTRY_PREFIX ==~ /ghcr\.io\/[a-z0-9._-]+\/[a-z0-9._\/-]+/)) {
+                            error 'REGISTRY_PREFIX must be a lowercase GHCR image prefix.'
+                        }
+                        sh 'command -v ssh; command -v tar'
+                    }
+                }
             }
         }
 
         stage('Validate configuration') {
             steps {
+                sh 'sh ci/test-production.sh'
                 sh '''
                     set -eu
                     SPRING_DATASOURCE_PASSWORD="$CI_DB_PASSWORD" \
@@ -82,6 +105,13 @@ pipeline {
                     BACKEND_IMAGE=demo1-backend:validation \
                     FRONTEND_IMAGE=demo1-frontend:validation \
                     docker compose -f compose.ci.yaml config --quiet
+                    DOMAIN=shop.example.test ACME_EMAIL=ci@example.test RELEASE_ID="$IMAGE_TAG" \
+                    DB_ROOT_PASSWORD="$CI_DB_PASSWORD" DB_APP_PASSWORD="$CI_DB_PASSWORD" \
+                    APP_JWT_SECRET="$CI_JWT_SECRET" \
+                    docker compose -f compose.production.yaml config --quiet
+                    docker run --rm -e DOMAIN=shop.example.test -e ACME_EMAIL=ci@example.test -e RELEASE_ID="$IMAGE_TAG" \
+                      -v "$WORKSPACE/deploy/production/Caddyfile:/etc/caddy/Caddyfile:ro" \
+                      caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
                 '''
             }
         }
@@ -144,7 +174,7 @@ pipeline {
                     set -eu
                     docker build --pull --tag "$BACKEND_IMAGE" demo
                     docker build --pull \
-                        --build-arg "VITE_API_BASE_URL=http://${DEPLOY_HOST}:${BACKEND_PORT}" \
+                        --build-arg "VITE_API_BASE_URL=$PUBLIC_ORIGIN" \
                         --tag "$FRONTEND_IMAGE" frontend
                 '''
             }
@@ -171,6 +201,7 @@ pipeline {
         }
 
         stage('Preserve rollback baseline') {
+            when { expression { params.DEPLOY_TARGET == 'vm' } }
             steps {
                 script {
                     sh '''
@@ -205,6 +236,7 @@ pipeline {
         }
 
         stage('Approve deployment') {
+            when { expression { params.DEPLOY_TARGET == 'vm' } }
             steps {
                 script {
                     timeout(time: 20, unit: 'MINUTES') {
@@ -216,6 +248,7 @@ pipeline {
         }
 
         stage('Deploy candidate') {
+            when { expression { params.DEPLOY_TARGET == 'vm' } }
             steps {
                 withCredentials([
                     string(credentialsId: 'APP_JWT_SECRET', variable: 'APP_JWT_SECRET'),
@@ -234,6 +267,7 @@ pipeline {
         }
 
         stage('Post-deploy smoke tests') {
+            when { expression { params.DEPLOY_TARGET == 'vm' } }
             steps {
                 script {
                     try {
@@ -255,7 +289,7 @@ pipeline {
 
         stage('Approve rollback') {
             when {
-                expression { env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE == 'true' }
+                expression { params.DEPLOY_TARGET == 'vm' && env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE == 'true' }
             }
             steps {
                 script {
@@ -268,7 +302,7 @@ pipeline {
 
         stage('Rollback stable images') {
             when {
-                expression { env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE == 'true' }
+                expression { params.DEPLOY_TARGET == 'vm' && env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE == 'true' }
             }
             steps {
                 withCredentials([
@@ -296,7 +330,7 @@ pipeline {
 
         stage('No rollback baseline') {
             when {
-                expression { env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE != 'true' }
+                expression { params.DEPLOY_TARGET == 'vm' && env.POST_DEPLOY_SMOKE_FAILED == 'true' && env.HAS_STABLE_RELEASE != 'true' }
             }
             steps {
                 echo 'No stable image pair is available. Do not continue the release; recover manually from a known-good backup or image.'
@@ -305,7 +339,7 @@ pipeline {
 
         stage('Mark release stable') {
             when {
-                expression { env.POST_DEPLOY_SMOKE_FAILED != 'true' }
+                expression { params.DEPLOY_TARGET == 'vm' && env.POST_DEPLOY_SMOKE_FAILED != 'true' }
             }
             steps {
                 sh '''
@@ -315,6 +349,84 @@ pipeline {
                 '''
             }
         }
+        stage('Publish production images') {
+            when { expression { params.DEPLOY_TARGET == 'production' } }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'PROD_REGISTRY', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_TOKEN')]) {
+                    sh '''
+                        set +x
+                        set -eu
+                        auth_dir="$(mktemp -d)"
+                        cleanup_auth() { rm -f "$auth_dir/config.json"; rmdir "$auth_dir"; }
+                        trap cleanup_auth EXIT
+                        export DOCKER_CONFIG="$auth_dir"
+                        printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+                        remote_backend="${REGISTRY_PREFIX}-backend:$IMAGE_TAG"
+                        remote_frontend="${REGISTRY_PREFIX}-frontend:$IMAGE_TAG"
+                        docker tag "$BACKEND_IMAGE" "$remote_backend"
+                        docker tag "$FRONTEND_IMAGE" "$remote_frontend"
+                        docker push "$remote_backend"
+                        docker push "$remote_frontend"
+                        printf 'BACKEND_IMAGE=%s\nFRONTEND_IMAGE=%s\nEXPECTED_DOMAIN=%s\nRELEASE_ID=%s\n' \
+                          "$remote_backend" "$remote_frontend" "$PROD_DOMAIN" "$IMAGE_TAG" > ci/production-release.env
+                        sh ci/production-bundle.sh "$ARTIFACT_DIR/production-bundle.tar.gz"
+                    '''
+                }
+            }
+        }
+        stage('Approve production deployment') {
+            when { expression { params.DEPLOY_TARGET == 'production' } }
+            steps {
+                timeout(time: 20, unit: 'MINUTES') {
+                    input message: "Deploy ${env.IMAGE_TAG} to https://${params.PROD_DOMAIN} on VPS ${params.PROD_SSH_HOST}? Database backup runs before deployment.", ok: 'Deploy production'
+                }
+            }
+        }
+        stage('Deploy production VPS') {
+            when { expression { params.DEPLOY_TARGET == 'production' } }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'PROD_SSH_KEY', keyFileVariable: 'SSH_KEY'),
+                    file(credentialsId: 'PROD_SSH_KNOWN_HOSTS', variable: 'SSH_KNOWN_HOSTS')
+                ]) {
+                    script {
+                        sh 'sh ci/production-remote.sh upload'
+                        env.PROD_HAS_BASELINE = sh(script: 'sh ci/production-remote.sh baseline', returnStatus: true) == 0 ? 'true' : 'false'
+                        int deployStatus = sh(script: 'sh ci/production-remote.sh deploy', returnStatus: true)
+                        if (deployStatus != 0) {
+                            env.PROD_DEPLOY_FAILED = 'true'
+                            currentBuild.result = 'FAILURE'
+                            sh 'sh ci/production-remote.sh diagnostics > artifacts/production-diagnostics.log 2>&1 || true'
+                            echo 'Production deploy/smoke failed. Candidate was not promoted; manual rollback approval is required.'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Approve production rollback') {
+            when { expression { params.DEPLOY_TARGET == 'production' && env.PROD_DEPLOY_FAILED == 'true' && env.PROD_HAS_BASELINE == 'true' } }
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input message: 'Restore the last successful production images? Database/schema are not rolled back.', ok: 'Rollback production'
+                }
+            }
+        }
+        stage('Rollback production VPS') {
+            when { expression { params.DEPLOY_TARGET == 'production' && env.PROD_DEPLOY_FAILED == 'true' && env.PROD_HAS_BASELINE == 'true' } }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'PROD_SSH_KEY', keyFileVariable: 'SSH_KEY'),
+                    file(credentialsId: 'PROD_SSH_KNOWN_HOSTS', variable: 'SSH_KNOWN_HOSTS')
+                ]) {
+                    sh 'sh ci/production-remote.sh rollback'
+                }
+            }
+        }
+        stage('Production deployment result') {
+            when { expression { params.DEPLOY_TARGET == 'production' && env.PROD_DEPLOY_FAILED == 'true' } }
+            steps { error 'Production candidate failed; review diagnostics and the rollback result. First deployments have no baseline.' }
+        }
+
     }
 
     post {
@@ -322,15 +434,19 @@ pipeline {
             sh '''
                 sh ci/collect-compose-diagnostics.sh compose.ci.yaml "$CI_PROJECT" "$ARTIFACT_DIR/ci-final-stack" || true
                 docker compose -f compose.ci.yaml -p "$CI_PROJECT" down --volumes --remove-orphans || true
-                sh ci/collect-compose-diagnostics.sh compose.yaml "$DEPLOY_PROJECT" "$ARTIFACT_DIR/deploy-stack" || true
-                docker ps -a --filter "label=com.docker.compose.project=${DEPLOY_PROJECT}" || true
+                if [ "$DEPLOY_TARGET" = vm ]; then
+                    sh ci/collect-compose-diagnostics.sh compose.yaml "$DEPLOY_PROJECT" "$ARTIFACT_DIR/deploy-stack" || true
+                    docker ps -a --filter "label=com.docker.compose.project=${DEPLOY_PROJECT}" || true
+                fi
             '''
             junit allowEmptyResults: true, testResults: 'demo/target/surefire-reports/*.xml,frontend/test-results/*.xml'
             archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/**,frontend/coverage/**,demo/target/site/jacoco/**'
         }
         failure {
             script {
-                if (env.POST_DEPLOY_SMOKE_FAILED == 'true') {
+                if (env.PROD_DEPLOY_FAILED == 'true') {
+                    echo 'Production deployment failed. Review archived diagnostics; rollback requires approval and never restores database/schema.'
+                } else if (env.POST_DEPLOY_SMOKE_FAILED == 'true') {
                     echo 'The candidate failed smoke tests after deployment. Review archived diagnostics and either complete the approved rollback or recover from the known-good release.'
                 } else {
                     echo 'CI stopped before approval when a pre-deploy quality gate failed. Review the failed stage and archived diagnostics; fix through a new commit, then rerun the affected checks.'

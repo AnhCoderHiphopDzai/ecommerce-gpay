@@ -1,0 +1,106 @@
+# Standalone production stack; do not merge with compose.yaml (which publishes dev ports).
+name: ecommerce-prod
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: shop
+      MYSQL_USER: shop_app
+      MYSQL_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h 127.0.0.1 -uroot --silent']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *logging
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *logging
+  backend:
+    image: ${BACKEND_IMAGE:?Set immutable BACKEND_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/shop?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: shop_app
+      SPRING_DATASOURCE_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET}
+      APP_CORS_ALLOWED_ORIGINS: https://${DOMAIN:?Set DOMAIN}
+      APP_FRONTEND_URL: https://${DOMAIN:?Set DOMAIN}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-}
+      APP_PAYMENTS_ENABLED: ${APP_PAYMENTS_ENABLED:-false}
+      GPAY_API_BASE_URL: ${GPAY_API_BASE_URL:-https://openapi-sandbox.g-pay.vn/v1}
+      GPAY_CLIENT_ID: ${GPAY_CLIENT_ID:-disabled}
+      GPAY_MERCHANT_CODE: ${GPAY_MERCHANT_CODE:-disabled}
+      GPAY_MERCHANT_ID: ${GPAY_MERCHANT_ID:-disabled}
+      GPAY_CLIENT_SECRET: ${GPAY_CLIENT_SECRET:-disabled}
+      GPAY_PRIVATE_KEY: ${GPAY_PRIVATE_KEY:-disabled}
+      GPAY_CERTIFICATE: ${GPAY_CERTIFICATE:-disabled}
+      GPAY_WEBHOOK_URL: https://${DOMAIN:?Set DOMAIN}/api/payment/webhook
+      GPAY_CALLBACK_URL: https://${DOMAIN:?Set DOMAIN}/api/payment/callback
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65
+    volumes:
+      - /opt/ecommerce-gpay/shared/payment:/run/gpay:ro
+    mem_limit: 1g
+    healthcheck:
+      test: [CMD-SHELL, 'curl --fail --silent --max-time 3 http://localhost:8081/actuator/health | grep -q ''"status":"UP"''']
+      interval: 5s
+      timeout: 4s
+      start_period: 40s
+      retries: 30
+    logging: *logging
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set immutable FRONTEND_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging: *logging
+  edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+      RELEASE_ID: ${RELEASE_ID:?Set RELEASE_ID from the release manifest}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./deploy/production/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend: {condition: service_healthy}
+    logging: *logging
+volumes:
+  mysql-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

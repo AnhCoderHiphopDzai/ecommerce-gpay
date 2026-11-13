@@ -1,0 +1,9 @@
+[Unit]
+Description=Backup ecommerce production MySQL
+Requires=docker.service
+After=docker.service
+[Service]
+Type=oneshot
+User=deploy
+UMask=0077
+ExecStart=/bin/sh /opt/ecommerce-gpay/current/deploy/production/backup.sh

@@ -39,11 +39,14 @@ public class PaymentController {
     private GpaySecurityUtil securityUtil;
 
     // Lấy Public Key của G-Pay từ cấu hình (đọc trực tiếp file pem trong resources)
-    @Value("classpath:gpay_public.pem")
+    @Value("${gpay.public-key-location:classpath:gpay_public.pem}")
     private org.springframework.core.io.Resource gpayPublicKeyResource;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
+
+    @Value("${app.payments.enabled:true}")
+    private boolean paymentsEnabled = true;
 
     @GetMapping("/get-url")
     public ResponseEntity<?> getPaymentUrl(@RequestParam String invoiceCode,
@@ -51,6 +54,7 @@ public class PaymentController {
                                            // Trước đây client tự gửi số tiền nên có thể tạo đơn 10 triệu rồi gửi amount=1000.
                                            @RequestParam(required = false) Integer amount,
                                            @AuthenticationPrincipal AppUserDetails principal) {
+        if (!paymentsEnabled) return paymentsUnavailable();
         try {
             // Chỉ chủ hóa đơn (hoặc ADMIN) mới được tạo link thanh toán
             Invoice invoice = invoiceService.getInvoiceForUser(invoiceCode, principal);
@@ -66,6 +70,7 @@ public class PaymentController {
 
     @PostMapping("/webhook")
     public ResponseEntity<?> gpayWebhookAllInOne(HttpServletRequest request) {
+        if (!paymentsEnabled) return paymentsUnavailable();
         log.info("====== NHẬN THÔNG BÁO WEBHOOK TỪ G-PAY ======");
         try {
             String rawJsonBody = StreamUtils.copyToString(request.getInputStream(), StandardCharsets.UTF_8);
@@ -178,6 +183,7 @@ public class PaymentController {
     @GetMapping("/get-va")
     public ResponseEntity<?> getVirtualAccount(@RequestParam String invoiceCode,
                                                @AuthenticationPrincipal AppUserDetails principal) { // 👉 BỔ SUNG (Auth)
+        if (!paymentsEnabled) return paymentsUnavailable();
         try {
             // Kiểm tra quyền sở hữu trước, rồi mới kiểm tra tồn kho
             Invoice invoice = invoiceService.getInvoiceForUser(invoiceCode, principal);
@@ -205,6 +211,10 @@ public class PaymentController {
     }
 
 
+
+    private ResponseEntity<String> paymentsUnavailable() {
+        return ResponseEntity.status(503).body("Thanh toán chưa được kích hoạt trên môi trường này");
+    }
 
     @GetMapping("/callback")
     public RedirectView gpayCallback() {

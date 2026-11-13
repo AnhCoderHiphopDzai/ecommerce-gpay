@@ -37,4 +37,8 @@ case "$headers" in
     ;;
 esac
 
-echo 'Candidate smoke checks passed.'
+# Candidate uses the prod profile: fail closed until payments are explicitly activated.
+status="$(curl --silent --show-error --max-time 10 --output /dev/null --write-out '%{http_code}' \
+  -H 'Content-Type: application/json' -d '{}' http://backend:8081/api/payment/webhook)"
+[ "$status" = 503 ] || { echo "Expected disabled payment webhook 503, got $status" >&2; exit 1; }
+echo 'Candidate smoke checks passed (prod profile and migrated schema).'
