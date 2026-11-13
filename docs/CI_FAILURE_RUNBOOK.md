@@ -4,6 +4,10 @@
 
 ## Thứ tự các cổng
 
+Trước các cổng bên dưới, **Runner preflight** kiểm tra Linux agent, Docker daemon/Compose,
+curl/Git, cú pháp shell và việc Docker đọc đúng workspace bind-mount.
+Lỗi ở bước này cần sửa runner; xem [JENKINS_ACCESS.md](JENKINS_ACCESS.md) để kết nối VM.
+
 1. **Validate configuration** kiểm tra cú pháp Compose và biến bắt buộc.
 2. **Frontend quality** chạy cài dependency khóa phiên bản, lint, test component/API client và build production.
 3. **Backend unit tests** kiểm tra chính sách mật khẩu, refresh token, rate limit, JWT, chữ ký G-Pay và xử lý webhook.
@@ -43,3 +47,24 @@ Sau rollback, Jenkins chạy smoke test lần nữa. Nếu rollback không có i
 - Ghi ngắn gọn nguyên nhân, commit sửa và test đã bổ sung trong pull request hoặc issue.
 - Nếu lỗi lọt qua CI, thêm test hoặc smoke check vào đúng cổng phát hiện sớm nhất.
 - Không bỏ qua cổng CI để deploy, trừ khi có người chịu trách nhiệm phê duyệt ngoại lệ và nêu rõ biện pháp giảm rủi ro.
+
+## Kết quả build #15 và lỗi cờ rollback
+
+Log job `demo1-ci-cd` ngày 2026-11-13 xác nhận build #15, commit `e122cf51a289`,
+kết thúc SUCCESS: candidate smoke đạt, người vận hành duyệt Deploy, post-deploy smoke đạt
+và hai image `build-15-e122cf51a289` được gắn `stable`. Không cần rollback bản deploy này.
+Thông báo `[Checks API] No suitable checks publisher found` không làm build thất bại;
+JUnit và artifact vẫn được ghi. Frontend hiện `health: starting` ngay sau khi khởi động
+không mâu thuẫn với HTTP smoke đã đạt; sau đó kiểm tra từ Windows trả HTTP 200.
+
+Log baseline có `printf true` nhưng lại báo không có stable. Jenkinsfile cũ đặt
+`HAS_STABLE_RELEASE` và `POST_DEPLOY_SMOKE_FAILED` trong Declarative `environment`.
+Scope `withEnv` của Declarative che giá trị được gán lại bằng `env.*` trong `script`.
+Do đó lỗi này cũng có thể bỏ qua bước duyệt rollback và gắn stable cho candidate có smoke thất bại.
+Bản sửa khởi tạo hai cờ trong `script` đầu Checkout, rồi cập nhật chúng trong các stage sau.
+Đối chiếu cơ chế scope trong [ModelInterpreter của Jenkins](https://github.com/jenkinsci/pipeline-model-definition-plugin/blob/master/pipeline-model-definition/src/main/resources/org/jenkinsci/plugins/pipeline/modeldefinition/ModelInterpreter.groovy)
+và [EnvActionImpl](https://github.com/jenkinsci/workflow-cps-plugin/blob/master/plugin/src/main/java/org/jenkinsci/plugins/workflow/cps/EnvActionImpl.java).
+
+Sau khi đưa bản sửa lên branch của job, chạy một build mới và kiểm tra baseline hiện có stable.
+Không cố tình làm hỏng smoke ở môi trường đang triển khai để thử rollback; kiểm chứng nhánh lỗi trên môi trường thử riêng.
+Build #15 chưa kiểm chứng bản sửa cờ trạng thái hoặc các cải tiến runner mới trong working tree.

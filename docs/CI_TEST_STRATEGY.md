@@ -7,6 +7,7 @@ Mỗi thay đổi phải đi qua các cổng bên dưới theo thứ tự trong 
 
 | Cổng | Môi trường | Kiểm tra chính | Khi lỗi |
 | --- | --- | --- | --- |
+| Runner preflight | Linux Jenkins agent / Docker daemon | Docker/Compose/curl/Git, bind-mount workspace và cú pháp shell | Dừng sớm khi runner cấu hình sai |
 | Frontend quality | Node container tạm | `npm ci`, oxlint, Vitest, coverage, Vite build | Dừng trước khi build image |
 | Backend unit | JVM/Maven container tạm | JWT, password policy, refresh-token policy, rate limit, G-Pay RSA, webhook | Dừng trước khi khởi động database |
 | Backend integration/API | MySQL + Redis Compose tạm | đăng ký/đăng nhập/refresh/logout, CORS, quyền USER/ADMIN, CRUD sản phẩm, giỏ hàng, quyền sở hữu hóa đơn, chống overselling | Xóa volume tạm, lưu log/JUnit |
@@ -61,3 +62,6 @@ Integration/API test cần Docker Engine vì cần MySQL và Redis. Jenkins ch�
 - Không rollback MySQL tự động. Image frontend/backend có tag `stable` để rollback thủ công có phê duyệt; schema/data phải có migration và kế hoạch khôi phục riêng.
 
 Xem [CI_FAILURE_RUNBOOK.md](CI_FAILURE_RUNBOOK.md) khi một cổng thất bại hoặc smoke sau deploy đỏ.
+
+Xem [JENKINS_ACCESS.md](JENKINS_ACCESS.md) để SSH từ PowerShell, truy cập Jenkins và chạy integration test riêng trên Ubuntu.
+CI yêu cầu Maven báo lỗi nếu không tìm thấy test theo tag; không chấp nhận một cổng test rỗng.

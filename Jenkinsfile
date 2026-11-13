@@ -15,8 +15,13 @@ pipeline {
         pollSCM('H/2 * * * *')
     }
 
+    parameters {
+        string(name: 'DEPLOY_HOST', defaultValue: '192.168.179.129', trim: true,
+               description: 'Ubuntu VM IPv4 address or DNS hostname, without http:// or a port. Images deploy on the local Docker daemon.')
+    }
+
     environment {
-        DEPLOY_HOST = '192.168.179.129'
+        DEPLOY_HOST = "${params.DEPLOY_HOST}"
         DEPLOY_PROJECT = 'demo1'
         FRONTEND_PORT = '8088'
         BACKEND_PORT = '8081'
@@ -26,16 +31,20 @@ pipeline {
         ARTIFACT_DIR = 'artifacts'
         BACKEND_REPOSITORY = 'demo1-backend'
         FRONTEND_REPOSITORY = 'demo1-frontend'
-        POST_DEPLOY_SMOKE_FAILED = 'false'
-        HAS_STABLE_RELEASE = 'false'
     }
     stages {
     stage('Checkout') {
         steps {
+            script {
+                // Mutable flags must not be declared in environment: its withEnv scope
+                // would mask later env assignments and suppress the rollback path.
+                env.POST_DEPLOY_SMOKE_FAILED = 'false'
+                env.HAS_STABLE_RELEASE = 'false'
+            }
             checkout scm
             sh '''
                 set -eu
-                rm -rf demo/target frontend/test-results
+                rm -rf demo/target frontend/test-results frontend/coverage artifacts
             '''
             script {
                 env.GIT_SHA = sh(script: 'git rev-parse --verify HEAD', returnStdout: true).trim()
@@ -45,6 +54,17 @@ pipeline {
             }
         }
     }
+
+        stage('Runner preflight') {
+            steps {
+                script {
+                    if (!isUnix()) {
+                        error 'This pipeline must run on a Linux Jenkins agent on the Ubuntu deployment VM.'
+                    }
+                }
+                sh 'sh ci/preflight.sh'
+            }
+        }
 
         stage('Validate configuration') {
             steps {
@@ -300,6 +320,8 @@ pipeline {
     post {
         always {
             sh '''
+                sh ci/collect-compose-diagnostics.sh compose.ci.yaml "$CI_PROJECT" "$ARTIFACT_DIR/ci-final-stack" || true
+                docker compose -f compose.ci.yaml -p "$CI_PROJECT" down --volumes --remove-orphans || true
                 sh ci/collect-compose-diagnostics.sh compose.yaml "$DEPLOY_PROJECT" "$ARTIFACT_DIR/deploy-stack" || true
                 docker ps -a --filter "label=com.docker.compose.project=${DEPLOY_PROJECT}" || true
             '''
